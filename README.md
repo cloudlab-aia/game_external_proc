@@ -52,7 +52,7 @@ sudo apt install -y \
 ### Building the Project
 
 ```bash
-cd /home/octa/Escritorio/game_external_proc/virtualgl
+cd /game_external_proc/virtualgl
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
