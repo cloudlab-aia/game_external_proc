@@ -1,10 +1,11 @@
 # Project Overview
 
-This document serves as a test for a project aimed at capturing frames directly from the GPU and optimizing their processing. The goal of the project is to enhance performance by leveraging GPU capabilities for efficient frame handling and applying optimization techniques to improve overall system responsiveness.
+This project explores techniques for capturing frames directly from the GPU and optimizing their processing pipeline. The main objective is to improve real-time rendering performance by leveraging GPU capabilities and applying advanced frame processing methods.
 
-Key Objectives:
-- Capture frames directly from the GPU.
-- Optimize frame processing for better performance.
-- Explore techniques to reduce latency and improve efficiency.
+## Key Objectives
+- Capture frames efficiently from the GPU without significant latency.
+- Optimize the processing pipeline to enhance system responsiveness.
+- Investigate frame enhancement techniques, such as upscaling or frame generation.
+- Validate the approach through functional testing and performance analysis.
 
-This test will help validate the feasibility of the approach and identify potential areas for improvement.
+This document provides an overview of the project's goals and its current status.

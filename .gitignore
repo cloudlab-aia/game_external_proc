@@ -1,0 +1,25 @@
+# Ignorar carpetas de compilación
+/build/
+/virtualgl/build/
+
+# Archivos temporales de sistema/editor
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*~
+.DS_Store
+Thumbs.db
+
+# Archivos generados por CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Dumps y capturas temporales
+/tmp/*
+
+# Archivos de configuración de Visual Studio Code
+.vscode/
