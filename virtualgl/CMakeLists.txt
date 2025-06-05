@@ -50,7 +50,9 @@ set(BUILD ${DEFAULT_BUILD} CACHE STRING "Build string (default: ${DEFAULT_BUILD}
 
 message(STATUS "VERSION = ${VERSION}, BUILD = ${BUILD}")
 add_definitions(-D__VERSION="${VERSION}" -D__BUILD="${BUILD}"
-	-D__APPNAME="${CMAKE_PROJECT_NAME}")
+    -D__APPNAME="${CMAKE_PROJECT_NAME}")
+
+add_definitions(-DCL_TARGET_OPENCL_VERSION=300) # Añadido para OpenCL
 
 # Detect CPU type and word size
 math(EXPR BITS "${CMAKE_SIZEOF_VOID_P} * 8")

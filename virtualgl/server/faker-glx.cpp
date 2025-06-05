@@ -2235,7 +2235,7 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
 
 		std::vector<unsigned char> pixels(width * height * 4); // RGBA
 		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-		std::cerr << "[DEBUG] Capturando frame de tamaño " << width << "x" << height << std::endl;
+		std::cerr << "[DEBUG] Capturando frames de tamaño " << width << "x" << height << std::endl;
 		// Guardar un .ppm de prueba
 		std::ofstream ofs("/tmp/frame.ppm", std::ios::binary);
 		ofs << "P6\n" << width << " " << height << "\n255\n";
