@@ -1,0 +1,164 @@
+#!/bin/sh
+
+set -u
+set -e
+trap onexit INT
+trap onexit TERM
+trap onexit EXIT
+
+TMPDIR=
+SUDO=
+
+onexit()
+{
+	if [ ! "$TMPDIR" = "" ]; then
+		$SUDO rm -rf $TMPDIR
+	fi
+}
+
+uid()
+{
+	id | cut -f2 -d = | cut -f1 -d \(;
+}
+
+safedirmove ()
+{
+	if [ "$1" = "$2" ]; then
+		return 0
+	fi
+	if [ "$1" = "" -o ! -d "$1" ]; then
+		echo safedirmove: source dir $1 is not valid
+		return 1
+	fi
+	if [ "$2" = "" -o -e "$2" ]; then
+		echo safedirmove: dest dir $2 is not valid
+		return 1
+	fi
+	if [ "$3" = "" -o -e "$3" ]; then
+		echo safedirmove: tmp dir $3 is not valid
+		return 1
+	fi
+	mkdir -p $3
+	mv $1/* $3/
+	rmdir $1
+	mkdir -p $2
+	mv $3/* $2/
+	rmdir $3
+	return 0
+}
+
+makedeb()
+{
+	SUPPLEMENT=$1
+	DIRNAME=$PKGNAME
+
+	if [ $SUPPLEMENT = 1 ]; then
+		PKGNAME=$PKGNAME\32
+		if [ "$DEBARCH" = "i386" ]; then
+			DEBARCH=amd64
+		else
+			DEBARCH=arm64
+		fi
+	fi
+
+	umask 022
+	rm -f $PKGNAME\_$VERSION\_$DEBARCH.deb
+	TMPDIR=`mktemp -d /tmp/$PKGNAME-build.XXXXXX`
+	mkdir $TMPDIR/DEBIAN
+
+	DESTDIR=$TMPDIR @CMAKE_MAKE_PROGRAM@ install
+	rm $TMPDIR/$BINDIR/.vglrun.vars*
+	mkdir -p $TMPDIR/usr
+
+	if [ $SUPPLEMENT = 1 ]; then
+
+		rm -rf $TMPDIR/$DOCDIR
+		rm -rf $TMPDIR/$INCDIR
+		mv $TMPDIR/$BINDIR/glxspheres* $TMPDIR/
+		rm -rf $TMPDIR/$BINDIR
+		mkdir -p $TMPDIR/$BINDIR
+		mv $TMPDIR/glxspheres* $TMPDIR/$BINDIR/
+
+		SIZE=`du -s $TMPDIR | cut -f1`
+		cat pkgscripts/deb-control \
+			| sed "s/Architecture: i386/Architecture: $DEBARCH/g" \
+			| sed s/$DIRNAME/$PKGNAME/g | sed s/{__SIZE}/$SIZE/g \
+			> $TMPDIR/DEBIAN/control
+
+		if [ ! "$LIBDIR" = "/usr/lib/i386-linux-gnu" ]; then
+			if [ ! "$LIBDIR" = "/usr/lib32" ]; then
+				safedirmove $TMPDIR/$LIBDIR $TMPDIR/usr/lib32 $TMPDIR/__tmplib
+			fi
+			mkdir -p $TMPDIR/usr/lib/i386-linux-gnu
+			ln -fs /usr/lib32/lib@VGL_FAKER_NAME@.so $TMPDIR/usr/lib/i386-linux-gnu/lib@VGL_FAKER_NAME@.so
+			ln -fs /usr/lib32/lib@VGL_FAKER_NAME@-nodl.so $TMPDIR/usr/lib/i386-linux-gnu/lib@VGL_FAKER_NAME@-nodl.so
+			if [ "$FAKEOPENCL" = "1" ]; then
+				ln -fs /usr/lib32/lib@VGL_FAKER_NAME@-opencl.so $TMPDIR/usr/lib/i386-linux-gnu/lib@VGL_FAKER_NAME@-opencl.so
+			fi
+			ln -fs /usr/lib32/lib@VGL_DLFAKER_NAME@.so $TMPDIR/usr/lib/i386-linux-gnu/lib@VGL_DLFAKER_NAME@.so
+			ln -fs /usr/lib32/lib@VGL_GEFAKER_NAME@.so $TMPDIR/usr/lib/i386-linux-gnu/lib@VGL_GEFAKER_NAME@.so
+		fi
+
+	else
+
+		SIZE=`du -s $TMPDIR | cut -f1`
+		cat pkgscripts/deb-control | sed s/{__SIZE}/$SIZE/g \
+			> $TMPDIR/DEBIAN/control
+
+		if [ ! "$LIBDIR" = "/usr/lib" ]; then
+			safedirmove $TMPDIR/$LIBDIR $TMPDIR/usr/lib $TMPDIR/__tmplib
+		fi
+
+		if [ ! "$BINDIR" = "/usr/bin" -a "$BINSYMLINKS" = "1" ]; then
+			mkdir -p $TMPDIR/usr/bin
+			__PWD=$PWD
+			cd $TMPDIR/$BINDIR
+			for i in vgl*; do
+				ln -fs $BINDIR/$i $TMPDIR/usr/bin/
+			done
+			cd $__PWD
+		fi
+
+		if [ ! "$INCDIR" = "/usr/include" -a "$INCSYMLINKS" = "1" ]; then
+			mkdir -p $TMPDIR/usr/include
+			__PWD=$PWD
+			cd $TMPDIR/$INCDIR
+			for i in *; do
+				ln -fs $INCDIR/$i $TMPDIR/usr/include/$i
+			done
+			cd $__PWD
+		fi
+
+		if [ "$PREFIX" = "@CMAKE_INSTALL_DEFAULT_PREFIX@" -a "$DOCDIR" = "@CMAKE_INSTALL_DEFAULT_PREFIX@/doc" ]; then
+			safedirmove $TMPDIR/$DOCDIR $TMPDIR/usr/share/doc/$PKGNAME-$VERSION $TMPDIR/__tmpdoc
+			ln -fs /usr/share/doc/$DIRNAME-$VERSION $TMPDIR$DOCDIR
+		fi
+
+	fi
+
+	$SUDO chown -Rh root:root $TMPDIR/*
+	dpkg -b $TMPDIR $PKGNAME\_$VERSION\_$DEBARCH.deb
+}
+
+PKGNAME=@PKGNAME_LC@
+VERSION=@VERSION@
+DEBARCH=@DEBARCH@
+PREFIX=@CMAKE_INSTALL_PREFIX@
+BINDIR=@CMAKE_INSTALL_FULL_BINDIR@
+BINSYMLINKS=@VGL_BINSYMLINKS@
+DOCDIR=@CMAKE_INSTALL_FULL_DOCDIR@
+INCDIR=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+INCSYMLINKS=@VGL_INCSYMLINKS@
+LIBDIR=@CMAKE_INSTALL_FULL_LIBDIR@
+FAKEOPENCL=@VGL_FAKEOPENCL@
+
+if [ ! `uid` -eq 0 ]; then
+	SUDO=sudo
+fi
+
+makedeb 0
+if [ "$DEBARCH" = "i386" -o "$DEBARCH" = "armel" -o "$DEBARCH" = "armhf" ]; then
+	makedeb 1
+fi
+
+exit

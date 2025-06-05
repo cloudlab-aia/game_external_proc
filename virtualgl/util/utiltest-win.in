@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+set -u
+trap onexit INT
+trap onexit TERM
+trap onexit EXIT
+
+SUCCESS=0
+PID=-1
+
+onexit()
+{
+	if [ $SUCCESS -eq 1 ]; then
+		echo GREAT SUCCESS!
+	else
+		echo Some errors were encountered.
+	fi
+}
+
+BIN=@CMAKE_RUNTIME_OUTPUT_DIRECTORY@
+IPV6=1
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-noipv6)
+		IPV6=0
+		;;
+	esac
+	shift
+done
+
+$BIN/bmptest
+echo
+
+$BIN/fbxtest -time 0.2
+$BIN/fbxtest -time 0.2 -mt
+
+$BIN/nettest -server &
+echo
+sleep 2
+$BIN/nettest -client 127.0.0.1 -time 0.2
+if [ "$IPV6" = "1" ]; then
+	$BIN/nettest -server -ipv6 &
+	echo
+	sleep 2
+	$BIN/nettest -client ::1 -time 0.2
+fi
+
+SUCCESS=1

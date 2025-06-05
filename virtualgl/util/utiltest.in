@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -e
+set -u
+trap onexit INT
+trap onexit TERM
+trap onexit EXIT
+
+SUCCESS=0
+PID=-1
+
+onexit()
+{
+	if [ $SUCCESS -eq 1 ]; then
+		echo GREAT SUCCESS!
+	else
+		echo Some errors were encountered.
+	fi
+	if [ $PID -ne -1 ]; then
+		kill -0 $PID >/dev/null 2>&1 && kill $PID
+	fi
+}
+
+BIN=@CMAKE_RUNTIME_OUTPUT_DIRECTORY@
+DEPTHS="24 30"
+IPV6=1
+SCREENS="0 1"
+WRAP=
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-no10bpc)
+		DEPTHS=24
+		;;
+	-noipv6)
+		IPV6=0
+		;;
+	-onescreen)
+		SCREENS=0
+		;;
+	-wrap)
+		WRAP=$2; shift
+		;;
+	esac
+	shift
+done
+
+$WRAP $BIN/bmptest
+$WRAP $BIN/pftest -time 0.01
+$WRAP $BIN/pftest -time 0.01 -getsetrgb
+echo
+
+NOSHM=
+if [ "`uname -s`" = "Darwin" ]; then
+	# MIT-SHM doesn't work with Xvfb on OS X/macOS for some reason.
+	NOSHM=-noshm
+fi
+
+which Xvfb >/dev/null 2>&1 || (
+	echo Xvfb not found!
+	exit 1
+)
+
+for depth in $DEPTHS; do
+	Xvfb :42 -screen 0 1920x1200x$depth -screen 1 1920x1200x$depth >/dev/null 2>&1 & PID=$!
+	echo Xvfb started as process $PID
+	echo
+	sleep 2
+	for SCREEN in $SCREENS; do
+		echo \*\*\*\*\* Testing 1920x1200x$depth, Screen $SCREEN \*\*\*\*\*
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2 -mt
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2 -pm
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2 -pm -mt
+	done
+	kill $PID
+	PID=-1
+	sleep 2
+done
+
+for depth in $DEPTHS; do
+	Xvfb :42 -screen 0 1024x768x$depth -screen 1 1024x768x$depth >/dev/null 2>&1 & PID=$!
+	echo Xvfb started as process $PID
+	echo
+	sleep 2
+	for SCREEN in $SCREENS; do
+		echo \*\*\*\*\* Testing 1024x768x$depth, Screen $SCREEN \*\*\*\*\*
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2 -mt
+		DISPLAY=:42.$SCREEN $WRAP $BIN/fbxtest $NOSHM -time 0.2 -pm
+	done
+	kill $PID
+	PID=-1
+	sleep 2
+done
+
+$WRAP $BIN/nettest -server &
+echo
+sleep 2
+$WRAP $BIN/nettest -client 127.0.0.1 -time 0.2
+if [ "$IPV6" = "1" ]; then
+	$WRAP $BIN/nettest -server -ipv6 &
+	echo
+	sleep 2
+	$WRAP $BIN/nettest -client ::1 -time 0.2
+fi
+
+SUCCESS=1

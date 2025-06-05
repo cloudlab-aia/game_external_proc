@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+set -e
+set -u
+trap onexit INT
+trap onexit TERM
+trap onexit EXIT
+
+SUCCESS=0
+VGLCLIENTPID=-1
+PID=-1
+
+onexit()
+{
+	if [ $SUCCESS -eq 1 ]; then
+		echo GREAT SUCCESS!
+	else
+		echo Some errors were encountered.
+	fi
+	if [ $PID -ne -1 ]; then
+		kill -0 $PID >/dev/null 2>&1 && kill $PID
+	fi
+	if [ $VGLCLIENTPID -ne -1 ]; then
+		kill -0 $VGLCLIENTPID >/dev/null 2>&1 && kill $VGLCLIENTPID
+	fi
+}
+
+BIN=@CMAKE_RUNTIME_OUTPUT_DIRECTORY@
+LIB=@CMAKE_LIBRARY_OUTPUT_DIRECTORY@
+FAKEOPENCL=@VGL_FAKEOPENCL@
+if [[ ${VGL_DISPLAY:-"x"} != "x" && ! $VGL_DISPLAY =~ ":" ]]; then
+	FAKEOPENCL=0
+fi
+
+NODL=
+FAKERUTARGS=
+THREADSARG=
+DEPTH=24
+IPV6=1
+SCREENS="0 1"
+WRAP=
+XVFBARGS=
+VGLTRANS=1
+GLVND=0
+EGLX=0
+EGLXARG=
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-nodl)
+		echo "Testing without dlopen() interposer"
+		NODL=-nodl
+		;;
+	-noopencl)
+		echo "Testing without OpenCL interposer"
+		FAKEOPENCL=0
+		;;
+	-novgltrans)
+		echo "Testing without VGL Transport"
+		VGLTRANS=0
+		;;
+	-noipv6)
+		IPV6=0
+		;;
+	-noglx)
+		XVFBARGS=$XVFBARGS" -extension GLX"
+		;;
+	-nomitshm)
+		XVFBARGS=$XVFBARGS" -extension MIT-SHM"
+		;;
+	-n)
+		THREADSARG="-n $2"
+		echo "Testing with $2 threads"
+		shift
+		;;
+	-10bpc)
+		DEPTH=30
+		FAKERUTARGS=-nostereo
+		;;
+	-onescreen)
+		SCREENS=0
+		;;
+	-wrap)
+		WRAP=$2; shift
+		;;
+	-glvnd)
+		echo "Testing with GLVND"
+		GLVND=1
+		;;
+	-eglx)
+		echo "Testing EGL/X11 interposer"
+		EGLX=1
+		EGLXARG=--eglx
+		;;
+	*)
+		break;
+		;;
+	esac
+	shift
+done
+if [ ! "$FAKERUTARGS" = "" ]; then
+	FAKERUTARGS="$FAKERUTARGS "${1+"$@"}
+else
+	FAKERUTARGS=${1+"$@"}
+fi
+
+which Xvfb >/dev/null 2>&1 || (
+	echo Xvfb not found!
+	exit 1
+)
+Xvfb :42 -screen 0 1920x1200x$DEPTH -screen 1 1920x1200x$DEPTH $XVFBARGS >/dev/null 2>&1 & PID=$!
+echo Xvfb $XVFBARGS started as process $PID
+sleep 2
+if [[ $XVFBARGS =~ "-extension MIT-SHM" ]]; then
+	DISPLAY=:42 xdpyinfo | grep -q MIT-SHM && ( echo ERROR: MIT-SHM extension not disabled; false; )
+	echo MIT-SHM extension disabled
+fi
+if [[ $XVFBARGS =~ "-extension GLX" ]]; then
+	DISPLAY=:42 xdpyinfo | grep -q GLX && ( echo ERROR: GLX extension not disabled; false; )
+	echo GLX extension disabled
+fi
+
+DISPLAY=:42 $BIN/vglrun $BIN/dlfakerut $EGLXARG
+DISPLAY=:42 $BIN/vglrun $BIN/dlfakerut $EGLXARG --prefix test
+if [ "$GLVND" = "1" ]; then
+	DISPLAY=:42 $BIN/vglrun $BIN/dlfakerut $EGLXARG --glvnd
+	DISPLAY=:42 $BIN/vglrun $BIN/dlfakerut $EGLXARG --prefix test --glvnd
+fi
+if [ "$FAKEOPENCL" = "1" ]; then
+	DISPLAY=:42 $BIN/vglrun +ocl $BIN/dlfakerut $EGLXARG
+	DISPLAY=:42 $BIN/vglrun +ocl $BIN/dlfakerut $EGLXARG --prefix test
+fi
+echo
+
+for SCREEN in $SCREENS; do
+
+	export DISPLAY=:42.$SCREEN
+
+	# Frame unit tests
+	$WRAP $BIN/frameut -check
+	if [ $DEPTH = 24 ]; then
+		$WRAP $BIN/frameut -check -anaglyph
+	fi
+	$WRAP $BIN/frameut -check -logo
+
+	# VGL Transport
+	if [ $DEPTH = 24 -a $VGLTRANS = 1 ]; then
+		echo \*\*\*\*\* Testing VGL Transport/IPv4, Screen $SCREEN \*\*\*\*\*
+		echo
+		$BIN/vglclient >vglclient.log 2>&1 & VGLCLIENTPID=$!
+		sleep 2
+		echo "===== VGL Transport, JPEG compression ====="
+		echo
+		VGL_CLIENT=127.0.0.1 LD_LIBRARY_PATH=$LIB \
+			$BIN/vglrun $NODL -c jpeg $WRAP $BIN/fakerut $FAKERUTARGS $THREADSARG
+		if [ "$EGLX" = "1" ]; then
+			echo "===== VGL Transport, JPEG compression (EGL/X11) ====="
+			echo
+			VGL_CLIENT=127.0.0.1 LD_LIBRARY_PATH=$LIB \
+				$BIN/vglrun $NODL -c jpeg $WRAP $BIN/eglxfakerut $THREADSARG
+		fi
+		echo "===== VGL Transport, RGB encoding, 2 threads ====="
+		echo
+		VGL_CLIENT=127.0.0.1 LD_LIBRARY_PATH=$LIB VGL_READBACK=sync \
+			$BIN/vglrun $NODL -np 2 -c rgb $WRAP $BIN/fakerut $FAKERUTARGS $THREADSARG
+		# (we can't test stereo here, because the transport plugin assumes
+		# quad-buffered, which isn't available with an X proxy.)
+		echo "===== VGL Transport plugin, JPEG compression ====="
+		echo
+		VGL_CLIENT=127.0.0.1 LD_LIBRARY_PATH=$LIB \
+			$BIN/vglrun $NODL -trans test $WRAP $BIN/fakerut -nostereo $FAKERUTARGS $THREADSARG
+		if [ "$EGLX" = "1" ]; then
+			echo "===== VGL Transport plugin, JPEG compression (EGL/X11) ====="
+			echo
+			VGL_CLIENT=127.0.0.1 LD_LIBRARY_PATH=$LIB \
+				$BIN/vglrun $NODL -trans test $WRAP $BIN/eglxfakerut $THREADSARG
+		fi
+		kill $VGLCLIENTPID
+		VGLCLIENTPID=-1
+
+		if [ "$IPV6" = "1" ]; then
+			echo \*\*\*\*\* Testing VGL Transport/IPv6, Screen $SCREEN \*\*\*\*\*
+			echo
+			$BIN/vglclient -ipv6 >vglclient.log 2>&1 & VGLCLIENTPID=$!
+			sleep 2
+			echo "===== VGL Transport, JPEG compression ====="
+			echo
+			VGL_CLIENT=::1 LD_LIBRARY_PATH=$LIB \
+				$BIN/vglrun $NODL -c jpeg $WRAP $BIN/fakerut $FAKERUTARGS $THREADSARG
+			echo "===== VGL Transport plugin, JPEG compression ====="
+			echo
+			VGL_CLIENT=[::1]:0 LD_LIBRARY_PATH=$LIB \
+				$BIN/vglrun $NODL -trans test $WRAP $BIN/fakerut -nostereo $FAKERUTARGS $THREADSARG
+			kill $VGLCLIENTPID
+			VGLCLIENTPID=-1
+		fi
+	fi
+
+	# X11 Transport
+	echo \*\*\*\*\* Testing X11 Transport, Screen $SCREEN \*\*\*\*\*
+	echo
+	LD_LIBRARY_PATH=$LIB \
+		$BIN/vglrun $NODL -c proxy $WRAP $BIN/fakerut $FAKERUTARGS $THREADSARG
+	if [ "$EGLX" = "1" ]; then
+		echo "===== X11 Transport (EGL/X11) ====="
+		echo
+		LD_LIBRARY_PATH=$LIB \
+			$BIN/vglrun $NODL -c proxy $WRAP $BIN/eglxfakerut $THREADSARG
+	fi
+	if [ $DEPTH = 24 ]; then
+		echo "===== X11 Transport plugin ====="
+		echo
+		LD_LIBRARY_PATH=$LIB \
+			$BIN/vglrun $NODL -trans test2 $WRAP $BIN/fakerut $FAKERUTARGS $THREADSARG
+		if [ "$EGLX" = "1" ]; then
+			echo "===== X11 Transport plugin (EGL/X11) ====="
+			echo
+			LD_LIBRARY_PATH=$LIB \
+				$BIN/vglrun $NODL -trans test2 $WRAP $BIN/eglxfakerut $THREADSARG
+		fi
+	fi
+
+done
+
+kill $PID
+PID=-1
+
+SUCCESS=1

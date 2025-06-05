@@ -1,0 +1,88 @@
+#VAR: css=virtualgl.css
+#TITLE: User's Guide for VirtualGL {val: _DOCVERSION}
+#MAKETITLE
+
+#IF: fmt==html
+
+#DefMacroN id=file args=@body <<---
+<strong class="filename">{arg: @body}</strong>
+---
+
+#DefMacroN id=pcode args=@body <<---
+<code>{arg: @body}</code>
+---
+
+#DefMacroN id=bold args=@body <<---
+<strong>{arg: @body}</strong>
+---
+
+#DefMacroN id=note args=@body <<---
+<div class="important"><p class="important">{arg: @body}</p></div>
+---
+
+#DefRegionN id=Pverb args=@body <<---
+<pre class="verbatim">{arg: @body}</pre>
+---
+
+#ENDIF
+
+__Intended audience:__ System Administrators, Graphics Programmers,
+Researchers, and others with knowledge of Linux or Unix operating systems,
+OpenGL, GLX or EGL, and the X Window System.
+
+#LIST: contents
+{nl}
+----8<--------------
+#INCLUDE: legalinfo.txt
+{nl}
+----8<--------------
+#INCLUDE: prefix.txt
+{nl}
+----8<--------------
+#INCLUDE: overview.txt
+{nl}
+----8<--------------
+#INCLUDE: sysreq.txt
+{nl}
+----8<--------------
+#INCLUDE: install.txt
+{nl}
+----8<--------------
+#INCLUDE: unixconfig.txt
+{nl}
+----8<--------------
+#INCLUDE: windowsconfig.txt
+{nl}
+----8<--------------
+#INCLUDE: vgltransportusage.txt
+{nl}
+----8<--------------
+#INCLUDE: x11transportusage.txt
+{nl}
+----8<--------------
+#INCLUDE: xvideosupport.txt
+{nl}
+----8<--------------
+#INCLUDE: transportplugins.txt
+{nl}
+----8<--------------
+#INCLUDE: setuid.txt
+{nl}
+----8<--------------
+#INCLUDE: virtualbox.txt
+{nl}
+----8<--------------
+#INCLUDE: apprecipes.txt
+{nl}
+----8<--------------
+#INCLUDE: advancedopengl.txt
+{nl}
+----8<--------------
+#INCLUDE: perfmeasurement.txt
+{nl}
+----8<--------------
+#INCLUDE: configdialog.txt
+{nl}
+----8<--------------
+#INCLUDE: advancedconfig.txt
+{nl}

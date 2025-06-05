@@ -1,0 +1,111 @@
+* System Requirements
+
+** Linux and Other Un*x Operating Systems
+{anchor: Linux_Requirements}
+
+|| || Server (x86) || Server (x86-64, AArch64) \
+	|| Client (if using the VGL Transport) ||
+| Recommended CPU \
+	| {list type=ul: \
+			{item:For optimal performance, the CPU should support SSE2 \
+				extensions.} \
+			{item:Dual processors or dual cores recommended}} \
+	| Dual processors or dual cores recommended \
+	| For optimal performance, the CPU should support SSE2 extensions. \
+	|
+| Graphics \
+	| AMD or nVidia GPU \
+		{list type=ul: \
+			{item:For optimal performance, particularly with multiple simultaneous \
+				users, a professional-grade GPU such as the AMD Radeon Pro or nVidia \
+				Quadro is recommended.} \
+			{item:Install the AMD or nVidia proprietary drivers.  Open source \
+				drivers for these GPUs do not always provide full 3D acceleration, \
+				and some of those drivers are not fully compatible with VirtualGL.}} \
+	| < \
+	| Any graphics adapter with decent 2D performance \
+		{list type=ul: \
+			{item:If using a 3D graphics adapter (GPU), install the vendor drivers \
+				for that 3D graphics adapter.}} \
+	|
+| O/S \
+	| VirtualGL should work with a variety of Linux distributions, \
+		[[http://www.freebsd.org][FreeBSD]], and \
+		[[http://www.oracle.com/us/products/servers-storage/solaris][Solaris]], \
+		but currently-supported versions of \
+		[[http://www.redhat.com/products/enterprise-linux/][Red Hat Enterprise Linux]] \
+		and its derivatives, [[http://www.ubuntu.com][Ubuntu]] LTS, and \
+		[[http://www.suse.com][SuSE]] Linux Enterprise tend to receive the most \
+		attention from the VirtualGL community. \
+	| < \
+	| < \
+	|
+| Other Software \
+	| X server configured to export True Color (24-bit or 32-bit) visuals \
+	| < \
+	| < \
+	|
+#OPT: hiCol=first
+
+** Mac/x86
+
+|| || Client (if using the VGL Transport) ||
+| CPU \
+	| 64-bit Intel or Apple silicon required \
+	|
+| O/S \
+	| OS X/macOS 10.9 "Mavericks" or later (Intel); macOS 11 "Big Sur" or later \
+		(Apple silicon) \
+	|
+| Other Software \
+	| [[http://xquartz.macosforge.org][XQuartz]] 2.8.0 or later \
+	|
+#OPT: hiCol=first
+
+** Windows
+
+|| || Client (if using the VGL Transport) ||
+| Recommended CPU \
+	| For optimal performance, the CPU should support SSE2 extensions. \
+	|
+| Graphics \
+	| Any graphics adapter with decent 2D performance \
+	|
+| Other Software \
+	| {list type=ul: \
+			{item:[[http://x.cygwin.com][Cygwin/X]]} \
+			{item:Client display must have a 24-bit or 32-bit color depth \
+				(True Color.)}} \
+	|
+#OPT: hiCol=first
+
+** Additional Requirements for Stereographic Rendering
+{anchor: Stereo_Requirements}
+
+	!!! The client requirements do not apply to anaglyphic stereo.  See
+	{ref prefix="Chapter ": Advanced_OpenGL} for more details.
+
+|| || Server (GLX back end) || Server (EGL back end) \
+	|| Client (VGL Transport required) ||
+| Linux/Unix \
+	| {list type=ul: \
+			{item:AMD or nVidia GPU that supports stereo (examples: AMD Radeon Pro, \
+				nVidia Quadro)} \
+			{item:The 3D X server should be configured to export stereo visuals.}} \
+	| No additional requirements \
+	| {list type=ul: \
+			{item:GPU that supports stereo} \
+			{item:The 2D X server should be configured to export stereo visuals.}} \
+	|
+| Mac/x86 \
+	| N/A \
+	| N/A \
+	| GPU that supports stereo (example: nVidia Quadro) \
+	|
+| Windows \
+	| N/A \
+	| N/A \
+	| This version of VirtualGL does not support quad-buffered stereo with \
+		Windows clients. \
+	|
+#OPT: hiCol=first

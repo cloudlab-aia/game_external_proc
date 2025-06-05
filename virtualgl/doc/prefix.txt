@@ -1,0 +1,87 @@
+* Conventions Used in This Document
+
+This document assumes that VirtualGL will be installed in the default directory
+({file: /opt/VirtualGL}).  If your installation of VirtualGL resides in a
+different directory, then adjust the instructions accordingly.
+
+** Terminology
+
+	3D application :: A computer program that uses a 3D rendering API
+	([[http://opengl.org][OpenGL]], for the purposes of this document) to
+	generate 2D images/animation frames ("rendered frames") from 3D data in real
+	time
+
+	VirtualGL server/application server (sometimes just "server") :: The remote
+	machine ("remote" from the point of view of the user) on which 3D
+	applications will be run with VirtualGL
+
+	3D graphics accelerator/graphics processing unit (GPU) :: A specialized
+	hardware device that processes 3D rendering commands and data from a 3D
+	application into 2D images much more quickly than a general-purpose CPU
+	could.  In order to effectively use VirtualGL, a GPU must be present in the
+	VirtualGL server.
+
+	3D X server :: An X Window System server ("X server") attached to one or more
+	GPUs in the VirtualGL server.  The 3D X server can be "headless" (not
+	attached to a monitor.)
+
+	X proxy :: A virtual X server that runs on a remote machine (usually, but not
+	always, on the VirtualGL server.)  Because X proxies render X Window System
+	("X11") drawing commands to a virtual framebuffer in main memory rather than
+	to a real framebuffer in GPU memory, multiple simultaneous instances of an X
+	proxy can co-exist on the same server.  However, for the same reason, X
+	proxies generally do not support hardware-accelerated 3D rendering (without
+	the help of VirtualGL.)  Most X proxies send only images to the client.
+
+	2D X server :: The X server to which the 3D application's GUI will be
+	displayed, and with which the user will interact.  The 2D X server can be an
+	actual X server running on the local machine ("local" from the point of view
+	of the user) or a remote X proxy instance.  The 2D X server does not need to
+	support OpenGL.
+
+	VirtualGL Faker :: A shared library ("dynamic shared object" or "DSO"),
+	loaded into a Linux/Unix OpenGL application at run time, that intercepts and
+	modifies ("interposes") certain GLX, EGL, OpenGL, X11, and XCB function calls
+	in order to seamlessly redirect 3D rendering into an off-screen buffer on a
+	GPU, read back the rendered frames, and transport the rendered frames (which
+	normally means delivering them to the 2D X server)
+
+	back end :: The method by which the GLX interposer creates off-screen
+	buffers on a GPU and redirects 3D rendering into them.  The GLX back end uses
+	the GLX API, so it can only access a GPU through an attached X server (the 3D
+	X server.)  The EGL back end uses the EGL API with the
+	''EGL_EXT_platform_device'' extension, so it accesses a GPU through an
+	associated EGL device without the need for a 3D X server.  The EGL back end
+	emulates a subset of the GLX API using the EGL API.  Since the EGL API does
+	not support multi-buffering (double buffering or quad-buffered stereo) with
+	off-screen surfaces, the EGL back end emulates multi-buffering using OpenGL
+	renderbuffer objects (RBOs.)  As of this writing, the EGL back end does not
+	yet support all of the GLX extensions and esoteric OpenGL features that the
+	GLX back end supports.
+	{nl}{nl}
+	The EGL/X11 interposer accesses the GPU using either the 3D X server or the
+	EGL device, depending on whether the GLX back end or the EGL back end is
+	enabled.  The EGL/X11 function calls are modified and redirected on a 1:1
+	basis (without the need for API emulation), so there is no disadvantage to
+	using an EGL device for 3D rendering with EGL/X11 applications.
+
+	frame trigger :: A function that is called by the 3D application to signal
+	that it has finished rendering a frame.  If the 3D application is using the
+	GLX API, then VirtualGL reads back and transports a rendered frame if the
+	application calls ''glXSwapBuffers()'' while rendering to the back buffer or
+	if the application calls ''glFinish()'', ''glXWaitGL()'', or (optionally)
+	''glFlush()'' while rendering to the front buffer.  If the 3D application is
+	using the EGL/X11 API, then VirtualGL reads back and transports a rendered
+	frame if the application calls ''eglSwapBuffers()''.
+
+	VGL Transport :: The (optional) protocol that VirtualGL uses to transport
+	rendered frames to a 2D X server on a machine other than the VirtualGL server
+
+	VirtualGL Client :: The (optional) application that receives rendered frames
+	in real time from the VirtualGL Faker by way of the VGL Transport,
+	decompresses or decodes those frames, and composites them into the 3D
+	application's windows
+
+	client :: The machine that is physically in front of the user.  For the
+	purposes of this document, the word "client"-- when used generically-- always
+	refers to this machine, not to the VirtualGL Client application.

@@ -1,0 +1,254 @@
+# This is a hack to prevent the RPM from depending on libGLcore.so.1 and
+# libnvidia-tls.so.1 if it was built on a system that has the NVidia
+# drivers installed.  The custom find-requires script is created during
+# install and removed during clean
+%define __find_requires %{_tmppath}/%{name}-%{version}-%{release}-find-requires
+
+# Path under which VirtualGL should be installed
+%define prefix @CMAKE_INSTALL_PREFIX@
+
+# Path under which executables and scripts should be installed
+%define bindir @CMAKE_INSTALL_FULL_BINDIR@
+
+# Create symlinks in %{_bindir} (usually /usr/bin), assuming
+# %{bindir} != %{_bindir}
+%define binsymlinks @VGL_BINSYMLINKS@
+
+%if "%{?__isa_bits:1}" == "1"
+%define _bits %{__isa_bits}
+%else
+# RPM < 4.6
+%if "%{_lib}" == "lib64"
+%define _bits 64
+%else
+%define _bits 32
+%endif
+%endif
+
+%if "%{_bits}" == "64"
+%define _syslibdir /usr/lib64
+%else
+%define _syslibdir /usr/lib
+%endif
+
+# Path under which the VirtualGL faker libraries should be installed
+%define libdir %{_syslibdir}
+
+# Path under which the VirtualGL transport API headers should be installed
+%define incdir @CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+# Create symlinks in %{_includedir} (usually /usr/include), assuming
+# %{incdir} != %{_includedir}
+%define incsymlinks @VGL_INCSYMLINKS@
+
+# Path under which docs should be installed
+%define docdir %{_defaultdocdir}/%{name}-%{version}
+
+%define fakeopencl @VGL_FAKEOPENCL@
+
+Summary: A toolkit for displaying OpenGL applications to thin clients
+Name: @PKGNAME@
+Version: @VERSION@
+Vendor: @PKGVENDOR@
+URL: @PKGURL@
+Group: Applications/Graphics
+#-->Source0: https://github.com/VirtualGL/virtualgl/releases/download/%{version}/VirtualGL-%{version}.tar.gz
+Release: @BUILD@
+License: wxWindows Library License v3.1
+BuildRoot: %{_blddir}/%{name}-buildroot-%{version}-%{release}
+Requires: /sbin/ldconfig
+
+%description
+VirtualGL is a toolkit that allows most Linux/Unix OpenGL applications to be
+remotely displayed with 3D hardware acceleration to thin clients, regardless of
+whether the clients have 3D rendering capabilities, and regardless of the size
+of the 3D data being rendered or the speed of the network.
+
+Using the vglrun script, the VirtualGL Faker library is preloaded into an
+OpenGL application at run time.  The faker then intercepts and modifies
+("interposes") certain GLX, OpenGL, X11, and XCB function calls in order to
+seamlessly redirect 3D rendering from the application's windows into
+corresponding GPU-attached off-screen buffers, read back the rendered frames,
+and transport the frames to the "2D X Server" (the X server to which the
+application's GUI is being displayed), where the frames are composited back
+into the application's windows.
+
+VirtualGL can be used to give hardware-accelerated 3D rendering capabilities to
+VNC and other X proxies that either lack OpenGL support or provide it through a
+software renderer.  In a LAN environment, VGL can also be used with its
+built-in high-performance image transport (the VGL Transport), which sends the
+rendered frames to the VirtualGL Client application for compositing on a
+client-side 2D X server.  VirtualGL also supports image transport plugins,
+allowing the rendered frames to be sent or captured using other mechanisms.
+
+VirtualGL is based upon ideas presented in various academic papers on this
+topic, including "A Generic Solution for Hardware-Accelerated Remote
+Visualization" (Stegmaier, Magallon, Ertl 2002) and "A Framework for
+Interactive Hardware Accelerated Remote 3D-Visualization" (Engel, Sommer,
+Ertl 2000.)
+
+#-->%prep
+#-->%setup -q -n @CMAKE_PROJECT_NAME@-%{version}
+
+#-->%build
+#-->cmake -G"Unix Makefiles" -DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@ \
+#-->  -DBUILD=%{release} -DCMAKE_INSTALL_BINDIR=%{bindir} \
+#-->  -DCMAKE_INSTALL_DOCDIR=%{docdir} -DCMAKE_INSTALL_INCLUDEDIR=%{incdir} \
+#-->  -DCMAKE_INSTALL_LIBDIR=%{libdir} -DCMAKE_INSTALL_PREFIX=%{prefix} \
+#-->  -DVGL_BUILDSERVER=@VGL_BUILDSERVER@ -DVGL_SYSTEMFLTK=@VGL_SYSTEMFLTK@ \
+#-->  -DVGL_USEXV=@VGL_USEXV@ -DVGL_FAKEOPENCL=@VGL_FAKEOPENCL@ .
+#-->export NUMCPUS=`grep -c '^processor' /proc/cpuinfo`
+#-->make -j$NUMCPUS --load-average=$NUMCPUS
+
+%install
+rm -rf $RPM_BUILD_ROOT
+DESTDIR=$RPM_BUILD_ROOT @CMAKE_MAKE_PROGRAM@ install
+rm $RPM_BUILD_ROOT/%{bindir}/.vglrun.vars*
+
+%if "%{bindir}" != "%{_bindir}" && %{binsymlinks}
+mkdir -p $RPM_BUILD_ROOT/%{_bindir}
+pushd $RPM_BUILD_ROOT/%{bindir}
+for i in vgl*; do
+	ln -fs %{bindir}/$i $RPM_BUILD_ROOT/%{_bindir}/
+done
+popd
+%endif
+
+%if "%{incdir}" != "%{_includedir}" && %{incsymlinks}
+mkdir -p $RPM_BUILD_ROOT/%{_includedir}
+pushd $RPM_BUILD_ROOT/%{incdir}
+for i in *; do
+	ln -fs %{incdir}/$i $RPM_BUILD_ROOT/%{_includedir}/
+done
+popd
+%endif
+
+#-->%if 0
+
+# This is only needed to support in-tree RPM generation via 'make rpm'.  When
+# building from a SRPM, we control where things are installed via CMake
+# variables.
+
+safedirmove ()
+{
+	if [ "$1" = "$2" ]; then
+		return 0
+	fi
+	if [ "$1" = "" -o ! -d "$1" ]; then
+		echo safedirmove: source dir $1 is not valid
+		return 1
+	fi
+	if [ "$2" = "" -o -e "$2" ]; then
+		echo safedirmove: dest dir $2 is not valid
+		return 1
+	fi
+	if [ "$3" = "" -o -e "$3" ]; then
+		echo safedirmove: tmp dir $3 is not valid
+		return 1
+	fi
+	mkdir -p $3
+	mv $1/* $3/
+	rmdir $1
+	mkdir -p $2
+	mv $3/* $2/
+	rmdir $3
+	return 0
+}
+
+VGL_DOCDIR=@CMAKE_INSTALL_FULL_DOCDIR@
+if [ ! "$VGL_DOCDIR" = "%{docdir}" ]; then
+	safedirmove $RPM_BUILD_ROOT/$VGL_DOCDIR $RPM_BUILD_ROOT/%{docdir} $RPM_BUILD_ROOT/__tmpdoc
+fi
+
+VGL_LIBDIR=@CMAKE_INSTALL_FULL_LIBDIR@
+if [ ! "$VGL_LIBDIR" = "%{libdir}" ]; then
+	safedirmove $RPM_BUILD_ROOT/$VGL_LIBDIR $RPM_BUILD_ROOT/%{libdir} $RPM_BUILD_ROOT/__tmplib
+fi
+
+#-->%endif
+
+%if "%{prefix}" == "@CMAKE_INSTALL_DEFAULT_PREFIX@" && "%{docdir}" != "%{prefix}/doc"
+	ln -fs %{docdir} $RPM_BUILD_ROOT/%{prefix}/doc
+%endif
+
+echo '/usr/lib/rpm/find-requires|grep -v libGLcore|grep -v libnvidia-tls' >%{_tmppath}/%{name}-%{version}-%{release}-find-requires
+chmod 755 %{_tmppath}/%{name}-%{version}-%{release}-find-requires
+
+# This prevents the RPM from requiring libOpenCL.
+%if %{fakeopencl}
+	chmod 644 $RPM_BUILD_ROOT/%{libdir}/lib@VGL_FAKER_NAME@-opencl.so
+%endif
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+rm %{_tmppath}/%{name}-%{version}-%{release}-find-requires
+
+%post
+/sbin/ldconfig
+
+%postun
+/sbin/ldconfig
+
+%files -n %{name}
+%defattr(-,root,root)
+
+%dir %{prefix}
+%if "%{prefix}" == "@CMAKE_INSTALL_DEFAULT_PREFIX@" && "%{docdir}" != "%{prefix}/doc"
+	%{prefix}/doc
+%endif
+
+%dir %{docdir}
+%doc %{docdir}/*
+
+%dir %{bindir}
+%{bindir}/glreadtest
+%{bindir}/tcbench
+%{bindir}/nettest
+%{bindir}/cpustat
+%{bindir}/eglinfo
+%{bindir}/eglxinfo
+%{bindir}/glxinfo
+%{bindir}/vglclient
+%{bindir}/vglconfig
+%{bindir}/vglconnect
+%{bindir}/vglgenkey
+%{bindir}/vgllogin
+%{bindir}/vglserver_config
+%{bindir}/vglrun
+%if "%{_bits}" == "64"
+	%{bindir}/glxspheres64
+	%{bindir}/eglxspheres64
+%else
+	%{bindir}/glxspheres
+	%{bindir}/eglxspheres
+%endif
+%if "%{bindir}" != "%{_bindir}" && %{binsymlinks}
+	%{_bindir}/vglclient
+	%{_bindir}/vglconfig
+	%{_bindir}/vglconnect
+	%{_bindir}/vgllogin
+	%{_bindir}/vglrun
+	%{_bindir}/vglgenkey
+	%{_bindir}/vglserver_config
+%endif
+
+%dir %{incdir}
+%{incdir}/rrtransport.h
+%{incdir}/rr.h
+%if "%{incdir}" != "%{_includedir}" && %{incsymlinks}
+	%{_includedir}/rrtransport.h
+	%{_includedir}/rr.h
+%endif
+
+%if "%{libdir}" != "%{_syslibdir}"
+%dir %{libdir}
+%endif
+%{libdir}/lib@VGL_FAKER_NAME@.so
+%{libdir}/lib@VGL_FAKER_NAME@-nodl.so
+%if %{fakeopencl}
+	%attr(755, -, -) %{libdir}/lib@VGL_FAKER_NAME@-opencl.so
+%endif
+%{libdir}/lib@VGL_DLFAKER_NAME@.so
+%{libdir}/lib@VGL_GEFAKER_NAME@.so
+
+%changelog

@@ -1,0 +1,55 @@
+* Using VirtualGL with VirtualBox
+
+[[http://VirtualBox.org][VirtualBox]] is an enterprise-class, open source
+virtualization solution that supports hardware-accelerated OpenGL in Windows
+and Linux guests running on Windows, Mac, Linux, and Solaris/x86 hosts.  3D
+acceleration in VirtualBox is accomplished by installing a special driver in
+the guest that transmits OpenGL calls through a local connection to the
+VirtualBox process running on the host.  When used in conjunction with
+VirtualGL on a Linux or Solaris/x86 host, this solution provides a means of
+displaying Windows 3D applications remotely.
+
+To use VirtualGL with VirtualBox, perform the following procedures:
+
+	#. Launch VirtualBox and use the VirtualBox GUI to create and test your
+		virtual machine.
+
+	#. Follow the procedures outlined in the VirtualBox User Manual to enable 3D
+		acceleration in the virtual machine.  If possible, verify that 3D
+		acceleration works on a local display __without__ VirtualGL before adding
+		VirtualGL to the mix.
+
+	#. Follow the procedure described in {ref prefix="Chapter ": setuid_linux} to
+		make {file: libvglfaker.so} and {file: libdlfaker.so} setuid executables
+		(Linux) or to add the VirtualGL library directory to the list of secure
+		paths (Solaris).
+
+	#. Exit VirtualBox and re-launch it with ''vglrun''.
+
+*** NOTES
+#OPT: noList! plain!
+
+	* If VirtualGL is working properly with VirtualBox, then the OpenGL renderer
+		string in Windows guests should contain "SVGA3D" rather than "GDI Generic".
+
+	* The OpenGL renderer string in Un*x guests always contains "SVGA3D", so the
+		only reliable way to verify that VirtualGL is working properly with
+		VirtualBox in this case is to enable tracing (see below) and run a 3D
+		application in the guest.
+
+	* Tracing (''VGL_TRACE'' or ''vglrun +tr'') will not work with VirtualBox
+		unless the virtual machine is started from the command line, using
+
+		#Pverb: <<---
+		vglrun VirtualBoxVM -startvm __VM-name-or-UUID__
+		---
+
+	* VirtualBox bypasses VirtualGL's readback mechanism and image pipeline,
+		which has two ramifications:
+
+		- Features that are specific to VirtualGL's readback mechanism or image
+			pipeline, including the built-in profiling system and ''VGL_LOGO'', do
+			not work with VirtualBox.
+		- VirtualBox sends mainly uncompressed images to the X server, so even with
+			VirtualGL, it will not perform well over a remote X connection.  Using a
+			high-performance X proxy such as TurboVNC is highly recommended.
