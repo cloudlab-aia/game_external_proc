@@ -13,6 +13,7 @@ if(VGL_SYSTEMFLTK)
 	set(FLTK_SKIP_IMAGES 1)
 	set(FLTK_SKIP_OPENGL 1)
 	find_package(FLTK)
+	find_package(CUDA REQUIRED)
 else()
 	message(STATUS "Using in-tree version of FLTK")
 	add_subdirectory(fltk)
@@ -287,6 +288,8 @@ target_link_libraries(vgltrans_test2 vglcommon ${FBXFAKERLIB} ${TJPEG_LIBRARY})
 if(CMAKE_SYSTEM_NAME STREQUAL "SunOS" AND GNUCXX)
 	target_link_libraries(vgltrans_test2 stdc++)
 endif()
+
+
 
 configure_file(servertest.in ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/servertest
 	@ONLY)
