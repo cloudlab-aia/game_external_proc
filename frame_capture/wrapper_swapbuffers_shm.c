@@ -17,6 +17,8 @@
 static void (*real_glXSwapBuffers)(Display* dpy, GLXDrawable drawable) = NULL;
 
 void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
+    fprintf(stderr, "[WRAPPER] glXSwapBuffers interceptado.\n");
+    
     if (!real_glXSwapBuffers) {
         real_glXSwapBuffers = dlsym(RTLD_NEXT, "glXSwapBuffers");
         if (!real_glXSwapBuffers) {
@@ -36,6 +38,8 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
         goto end;
     }
 
+    fprintf(stderr, "[WRAPPER] Memoria compartida creada o encontrada.\n");
+
     // Ajusta el tamaño de la región compartida
     ftruncate(fd, FRAME_SIZE);
 
@@ -48,6 +52,7 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
 
     // Copia el frame a la memoria compartida
     memcpy(shm_ptr, pixels, FRAME_SIZE);
+    fprintf(stderr, "[WRAPPER] Frame copiado a memoria compartida.\n");
 
     // Desmapea y cierra
     munmap(shm_ptr, FRAME_SIZE);

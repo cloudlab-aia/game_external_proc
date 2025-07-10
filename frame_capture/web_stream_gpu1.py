@@ -6,10 +6,11 @@ import torch.nn.functional as F
 import cv2
 from flask import Flask, Response
 
-SHM_NAME = "/framebuffer_shm"
-FRAME_WIDTH, FRAME_HEIGHT = 640, 480
+SHM_NAME = "/framebuffer_shared"
+FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 FRAME_CHANNELS = 4
 FRAME_SIZE = FRAME_WIDTH * FRAME_HEIGHT * FRAME_CHANNELS
+
 
 # Cargar la memoria compartida
 shm = posix_ipc.SharedMemory(SHM_NAME)
@@ -26,7 +27,7 @@ app = Flask(__name__)
 def gen():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Usando dispositivo: {device}")
-
+    torch.randn(10000, 10000, device=device).matmul(torch.randn(10000, 10000, device=device))
     while True:
         mapfile.seek(0)
         frame_bytes = mapfile.read(FRAME_SIZE)
