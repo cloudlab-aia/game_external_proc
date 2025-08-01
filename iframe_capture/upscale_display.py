@@ -1,144 +1,148 @@
 import os
-import cv2
 import time
+import cv2
 import numpy as np
+import openvino as ov
 
 # Configuración
 WIDTH, HEIGHT = 1920, 1080
 FRAME_SIZE = WIDTH * HEIGHT * 4
 SHM_NAME = "/dev/shm/framebuffer_shared"
-MODEL_PATH = "/home/ogg/Desktop/AIA/game_external_proc/models/super-resolution-10.onnx"
+MODEL_XML = "/home/ogg/Desktop/AIA/game_external_proc/models/single-image-super-resolution-1032.xml"
+MODEL_BIN = "/home/ogg/Desktop/AIA/game_external_proc/models/single-image-super-resolution-1032.bin"
 
-# === ENV VARS: Forzar Intel iGPU específicamente ===
-os.environ["OPENCV_DNN_OPENCL_ALLOW_ALL_DEVICES"] = "1"
-# Fuerza Intel específicamente usando índice de plataforma (Intel=1, NVIDIA=0)
-os.environ["OPENCV_OCL_DEVICE"] = "1:GPU:0"  # Plataforma 1 (Intel), GPU 0
-# Alternativas para forzar Intel
-os.environ["OPENCL_VENDOR"] = "Intel"  # Prioriza Intel como vendor
-os.environ["INTEL_OPENCL_ICD"] = "1"  # Habilita Intel OpenCL ICD
-# Deshabilita NVIDIA completamente
-os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Oculta NVIDIA CUDA
-os.environ["__NV_PRIME_RENDER_OFFLOAD"] = "0"  # Desactiva NVIDIA Prime
-os.environ["__GLX_VENDOR_LIBRARY_NAME"] = "intel"  # Fuerza Intel para GLX
-os.environ["OPENCV_LOG_LEVEL"] = "INFO"  # Habilitar logs para debug
+# Inicializar OpenVINO
+core = ov.Core()
 
-# === Cargar modelo ONNX ===
-print("[INFO] Cargando modelo ONNX:", MODEL_PATH)
-net = cv2.dnn.readNetFromONNX(MODEL_PATH)
+# Mostrar dispositivos disponibles
+print("[INFO] Dispositivos disponibles:", core.available_devices)
 
-# === Función para configurar Intel iGPU ===
-def configurar_intel_igpu():
-    """Configura OpenCV para usar Intel iGPU mediante OpenCL"""
-    if not cv2.ocl.haveOpenCL():
-        print("[ERROR] OpenCL no está disponible en OpenCV")
-        return False
+# Intentar usar GPU (iGPU Intel) si está disponible, sino CPU optimizado
+device = "GPU" if "GPU" in core.available_devices else "CPU"
+print(f"[INFO] Usando dispositivo: {device}")
 
-    # Habilitar OpenCL
-    cv2.ocl.setUseOpenCL(True)
+# Cargar modelo
+print(f"[INFO] Cargando modelo: {MODEL_XML}")
+model = core.read_model(model=MODEL_XML, weights=MODEL_BIN)
+
+# Configurar para optimizar rendimiento
+config = {}
+if device == "GPU":
+    config["GPU_DISABLE_WINOGRAD_CONVOLUTION"] = "YES"
+    config["CACHE_DIR"] = "/tmp/openvino_cache"
+else:  # CPU optimizations
+    # Configuración simplificada para Core Ultra 7 265K
+    import os
+    num_cores = os.cpu_count()
+    config["CACHE_DIR"] = "/tmp/openvino_cache"
+    print(f"[INFO] Configuración CPU: {num_cores} núcleos disponibles")
     
-    try:
-        # Configurar DNN para usar OpenCL (Intel iGPU)
-        net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-        net.setPreferableTarget(cv2.dnn.DNN_TARGET_OPENCL)
-        
-        # Verificar que OpenCL esté activo
-        if cv2.ocl.useOpenCL():
-            print("[INFO] OpenCL habilitado exitosamente")
-            print("[INFO] DNN configurado para usar OpenCL")
-            print("[INFO] Debería estar usando Intel iGPU (plataforma 1)")
-            return True
-        else:
-            print("[WARN] OpenCL no se pudo activar")
-            return False
-            
-    except Exception as e:
-        print(f"[ERROR] Error configurando OpenCL: {e}")
-        return False
+compiled_model = core.compile_model(model=model, device_name=device, config=config)
 
-def verificar_opencl_status():
-    """Verifica el estado de OpenCL"""
-    try:
-        if cv2.ocl.haveOpenCL():
-            if cv2.ocl.useOpenCL():
-                print("[INFO] OpenCL disponible y activo")
-                return True
-            else:
-                print("[WARN] OpenCL disponible pero no activo")
-                return False
-        else:
-            print("[ERROR] OpenCL no disponible")
-            return False
-    except Exception as e:
-        print(f"[ERROR] Error verificando OpenCL: {e}")
-        return False
+# Obtener información de inputs y outputs
+input_layers = [compiled_model.input(i) for i in range(len(compiled_model.inputs))]
+output_layer = compiled_model.output(0)
 
-# === Inicializar Intel iGPU ===
-print("[INFO] Inicializando Intel iGPU...")
-igpu_ok = configurar_intel_igpu()
+print(f"[INFO] Modelo cargado con {len(input_layers)} entradas:")
+for i, inp in enumerate(input_layers):
+    print(f"  Input {i}: {inp.shape}")
+print(f"[INFO] Output: {output_layer.shape}")
 
-# Verificar estado de OpenCL
-verificar_opencl_status()
+def preprocess_frame(frame):
+    """Prepara el frame en dos resoluciones para el modelo ESPCN:
+    - Input 0: Imagen de baja resolución (270x480)
+    - Input 1: Imagen de alta resolución original (1080x1920)
+    """
+    # Convertir a RGB
+    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    
+    # Entrada 0: Baja resolución (270x480)
+    lr_img = cv2.resize(img_rgb, (480, 270))  # Width x Height
+    lr_blob = lr_img.transpose(2, 0, 1)  # HWC → CHW
+    lr_blob = lr_blob[np.newaxis, :, :, :].astype(np.float32) / 255.0
+    
+    # Entrada 1: Alta resolución (1080x1920) - imagen original
+    hr_img = cv2.resize(img_rgb, (1920, 1080))  # Asegurar tamaño correcto
+    hr_blob = hr_img.transpose(2, 0, 1)  # HWC → CHW  
+    hr_blob = hr_blob[np.newaxis, :, :, :].astype(np.float32) / 255.0
+    
+    return lr_blob, hr_blob
 
-# Si no hay iGPU, usar CPU como fallback
-if not igpu_ok:
-    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-    print("[WARN] Cayendo en CPU como fallback")
-else:
-    print("[INFO] Intel iGPU configurada exitosamente")
+def postprocess(output):
+    """Convierte la salida del modelo a imagen BGR"""
+    out_img = output[0].transpose(1, 2, 0)  # CHW → HWC
+    out_img = (out_img * 255.0).clip(0, 255).astype(np.uint8)
+    img_bgr = cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR)
+    return img_bgr
 
-# === Superresolución ===
 def upscale_frame(frame_bgr):
-    h_orig, w_orig = frame_bgr.shape[:2]
-    frame_small = cv2.resize(frame_bgr, (224, 224))
-    img_ycc = cv2.cvtColor(frame_small, cv2.COLOR_BGR2YCrCb)
-    y, cr, cb = cv2.split(img_ycc)
+    """Aplica superresolución usando el modelo ESPCN con dos entradas"""
+    lr_blob, hr_blob = preprocess_frame(frame_bgr)
+    
+    # Preparar las entradas como diccionario usando los nombres de los inputs
+    inputs = {
+        input_layers[0]: lr_blob,  # Baja resolución 
+        input_layers[1]: hr_blob   # Alta resolución de referencia
+    }
+    
+    # Ejecutar inferencia
+    result = compiled_model(inputs)[output_layer]
+    return postprocess(result)
 
-    blob = cv2.dnn.blobFromImage(y.astype(np.float32) / 255.0, scalefactor=1.0, size=(224, 224))
-    net.setInput(blob)
-    out = net.forward()[0, 0]
-    out_y = (out * 255.0).clip(0, 255).astype(np.uint8)
-
-    cr_up = cv2.resize(cr, out_y.shape[::-1], interpolation=cv2.INTER_CUBIC)
-    cb_up = cv2.resize(cb, out_y.shape[::-1], interpolation=cv2.INTER_CUBIC)
-
-    img_ycc_up = cv2.merge([out_y, cr_up, cb_up])
-    img_bgr_up = cv2.cvtColor(img_ycc_up, cv2.COLOR_YCrCb2BGR)
-    final_result = cv2.resize(img_bgr_up, (w_orig * 2, h_orig * 2), interpolation=cv2.INTER_CUBIC)
-
-    return final_result
-
-# === Leer de memoria compartida ===
 def get_shared_frame():
     try:
         fd = os.open(SHM_NAME, os.O_RDONLY)
         buf = os.read(fd, FRAME_SIZE)
         os.close(fd)
         frame = np.frombuffer(buf, dtype=np.uint8).reshape((HEIGHT, WIDTH, 4))
-        frame_bgr = cv2.cvtColor(frame[:, :, :3], cv2.COLOR_RGB2BGR)
+        frame_bgr = cv2.cvtColor(frame[:, :, :3], cv2.COLOR_RGBA2BGR)  # OJO: RGBA→BGR
+        frame_bgr = cv2.flip(frame_bgr, 0)  # Corrige inversión vertical
         return frame_bgr
     except Exception as e:
         print("[WARN] Error al leer frame compartido:", e)
         return None
 
-# === Main loop ===
+# === Bucle principal ===
 if __name__ == "__main__":
-    print("[INFO] Mostrando ventana OpenCV con IA aplicada. Pulsa 'q' para salir.")
+    print("[INFO] Esperando frames desde memoria compartida...")
+    print("[INFO] Pulsa 'q' en la ventana de IA para salir.")
+    
+    # Crear ventana una sola vez con título fijo
+    window_title = f"AI Upscaling (ESPCN + OpenVINO) - {device}"
+    cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
+    
+    frame_count = 0
+    total_latency = 0
+    
     while True:
         frame = get_shared_frame()
         if frame is None:
             time.sleep(0.01)
             continue
+            
         try:
             start = time.time()
             frame_up = upscale_frame(frame)
             latency = (time.time() - start) * 1000
-            print(f"[INFO] Latencia IA: {latency:.2f} ms")
-            cv2.imshow("Frame con IA (iGPU Intel)", frame_up)
+            
+            # Estadísticas cada 30 frames
+            frame_count += 1
+            total_latency += latency
+            
+            if frame_count % 30 == 0:
+                avg_latency = total_latency / 30
+                fps = 1000 / avg_latency if avg_latency > 0 else 0
+                print(f"[INFO] Frame {frame_count}: Latencia promedio: {avg_latency:.2f} ms (~{fps:.1f} FPS) - Última latencia: {latency:.1f}ms")
+                total_latency = 0
+                
+            # Mostrar frame en la ventana existente
+            cv2.imshow(window_title, frame_up)
+            
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+                
         except Exception as e:
-            print("[ERROR] Error en procesamiento:", e)
+            print(f"[ERROR] Error en procesamiento: {e}")
             time.sleep(0.1)
 
     cv2.destroyAllWindows()
