@@ -36,9 +36,16 @@ def get_shared_frame():
 
 def upscale_openvino(frame_bgr, width, height):
     try:
-        input_size = (width // 4, height // 4)
+        # Usa la mitad de la resolución como entrada para mejor calidad
+        input_size = (max(width // 2, 1), max(height // 2, 1))
         frame_small = cv2.resize(frame_bgr, input_size)
         upscaled = sr.upsample(frame_small)
+        # Si el modelo no da el tamaño final, reescala con bicubic
+        if upscaled.shape[1] != width or upscaled.shape[0] != height:
+            upscaled = cv2.resize(upscaled, (width, height), interpolation=cv2.INTER_CUBIC)
+        # Aplica filtro de nitidez (opcional)
+        kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
+        upscaled = cv2.filter2D(upscaled, -1, kernel)
         return upscaled
     except Exception as e:
         print(f"[ERROR] Fallo en superresolución: {e}")
