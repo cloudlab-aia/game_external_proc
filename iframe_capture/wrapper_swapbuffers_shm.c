@@ -43,6 +43,7 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     // Ajusta el tamaño de la región compartida
     ftruncate(fd, FRAME_SIZE);
 
+
     // Mapea la memoria
     void* shm_ptr = mmap(0, FRAME_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
     if (shm_ptr == MAP_FAILED) {
@@ -50,7 +51,7 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
         goto close_fd;
     }
 
-    // Copia el frame a la memoria compartida
+    // Copia el frame original a la memoria compartida
     memcpy(shm_ptr, pixels, FRAME_SIZE);
     fprintf(stderr, "[WRAPPER] Frame copiado a memoria compartida.\n");
 
@@ -61,6 +62,6 @@ close_fd:
     close(fd);
 
 end:
-    free(pixels);
+    // No se necesita liberar 'flipped' ya
     real_glXSwapBuffers(dpy, drawable);
 }
