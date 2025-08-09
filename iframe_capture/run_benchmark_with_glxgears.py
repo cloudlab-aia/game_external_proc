@@ -2,6 +2,8 @@ import subprocess
 import time
 import os
 from pathlib import Path
+import numpy as np
+import struct
 
 resolutions = [
     (128, 72),
@@ -22,6 +24,28 @@ benchmark_script = "benchmark_models.py"
 
 output_width, output_height = 3840, 2160
 devices = ["cpu", "opencl"]  # Agrega "npu" si tu benchmark lo soporta
+
+shm_path = "/dev/shm/framebuffer_shared"
+header_size = 8  # 2 x uint32_t
+
+def read_frame():
+    with open(shm_path, "rb") as shm:
+        shm.seek(0)
+        header = shm.read(header_size)
+        if len(header) < header_size:
+            return None
+        width, height = struct.unpack("II", header)
+        frame_size = width * height * 4
+        frame = shm.read(frame_size)
+        if len(frame) < frame_size:
+            return None
+        img = np.frombuffer(frame, dtype=np.uint8).reshape((height, width, 4))
+        return img, width, height
+
+# Ejemplo de uso:
+img, w, h = read_frame()
+print(f"Frame capturado: {w}x{h}")
+# ...procesa img...
 
 for width, height in resolutions:
     print(f"===> Ejecutando glxgears a {width}x{height}")

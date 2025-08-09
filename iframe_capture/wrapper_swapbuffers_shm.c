@@ -31,6 +31,13 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     unsigned int height = viewport[3];
     fprintf(stderr, "[WRAPPER] Tamaño de ventana: %dx%d\n", width, height);
 
+    static int last_width = 0, last_height = 0;
+    if (width != last_width || height != last_height) {
+        printf("[wrapper_swapbuffers_shm] Cambio de tamaño detectado: %dx%d\n", width, height);
+        last_width = width;
+        last_height = height;
+    }
+
     unsigned int frame_size = width * height * 4;
     int header_size = 8; // 2 x uint32_t
     int shm_total_size = header_size + frame_size;
