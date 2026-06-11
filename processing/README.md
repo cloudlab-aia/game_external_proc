@@ -8,7 +8,8 @@ muestran o transmiten el resultado.
 
 | Archivo | Backend | Qué hace |
 |---|---|---|
-| `upscale_display.py` | **OpenVINO (principal)** | Pipeline de referencia del TFG. Modelo `single-image-super-resolution-1032` en iGPU (`device=GPU`), ventana cv2 con latencia medida (~10–15 ms). |
+| `upscale_fsrcnn_ov.py` | **OpenVINO FSRCNN (rápido)** | Vía jugable: FSRCNN x4/x2 convertido a IR, solo canal Y + croma bicúbico. ~13 ms/frame (≈75 FPS) en iGPU. `FSRCNN_SCALE=4\|2`. |
+| `upscale_display.py` | OpenVINO (calidad) | Modelo `single-image-super-resolution-1032` (residuo + bicúbica). Mejor reconstrucción pero ~63 ms/frame (≈16 FPS): no jugable, útil para comparativa de calidad. |
 | `upscale_openvino.py` | OpenVINO | Variante con Real-ESRGAN ONNX. |
 | `upscale_onnx.py` | ONNX Runtime | Variante con onnxruntime como motor de inferencia. |
 | `upscale_fsrcnn.py` | OpenCV dnn_superres | Variante FSRCNN (modelos .pb), OpenCL sobre iGPU. |

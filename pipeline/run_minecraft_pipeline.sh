@@ -14,7 +14,9 @@ SHM_PATH="/dev/shm/framebuffer_shared"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INTERCEPTOR="$REPO_DIR/capture/wrapper_swapbuffers_shm.so"
-UPSCALE_SCRIPT="$REPO_DIR/processing/upscale_display.py"
+# Upscaler rápido (FSRCNN/OpenVINO, ~13 ms/frame ≈ 75 FPS). Para el modelo
+# lento de mayor calidad usar UPSCALE_SCRIPT=processing/upscale_display.py
+UPSCALE_SCRIPT="${UPSCALE_SCRIPT:-$REPO_DIR/processing/upscale_fsrcnn_ov.py}"
 
 # Python del venv del proyecto si existe
 PYTHON="$REPO_DIR/venv/bin/python3"

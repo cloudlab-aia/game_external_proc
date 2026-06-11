@@ -4,7 +4,8 @@
 
 # Núcleo del pipeline (captura → shm → superresolución → display)
 openvino==2025.2.0
-opencv-python==4.12.0.88
+# opencv-contrib-python incluye dnn_superres (FSRCNN); reemplaza a opencv-python
+opencv-contrib-python
 numpy==2.2.6
 onnxruntime
 flask
