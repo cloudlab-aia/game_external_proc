@@ -80,6 +80,38 @@ def upscale_rgb(frame_bgr):
     return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
 
+def make_click_through(display_name):
+    """Hace la ventana SDL transparente al input (click-through) con XShape.
+
+    Fija una región de entrada vacía: el overlay se ve, pero el puntero y los
+    clics atraviesan hasta la ventana del juego que está debajo. Así Minecraft
+    puede capturar el puntero (mouse-look) aunque el overlay cubra la pantalla.
+    """
+    import ctypes
+    info = pygame.display.get_wm_info()
+    wid = info.get("window")
+    if not wid:
+        print("[WARN] sin XID de ventana; no se puede hacer click-through")
+        return
+    x11 = ctypes.CDLL("libX11.so.6")
+    xext = ctypes.CDLL("libXext.so.6")
+    x11.XOpenDisplay.restype = ctypes.c_void_p
+    dpy = x11.XOpenDisplay(display_name.encode())
+    if not dpy:
+        print("[WARN] XOpenDisplay falló para click-through")
+        return
+    SHAPE_INPUT = 2   # ShapeInput
+    SHAPE_SET = 0     # ShapeSet
+    # rectángulos = NULL, n = 0 → región de entrada vacía
+    xext.XShapeCombineRectangles(
+        ctypes.c_void_p(dpy), ctypes.c_ulong(wid), ctypes.c_int(SHAPE_INPUT),
+        ctypes.c_int(0), ctypes.c_int(0), None, ctypes.c_int(0),
+        ctypes.c_int(SHAPE_SET), ctypes.c_int(0))
+    x11.XFlush(ctypes.c_void_p(dpy))
+    x11.XCloseDisplay(ctypes.c_void_p(dpy))
+    print("[INFO] overlay click-through activado (input pasa al juego)")
+
+
 def return_focus_to_game():
     """Devuelve el foco de teclado a la ventana del juego (queda debajo)."""
     try:
@@ -99,7 +131,9 @@ def main():
     pygame.display.set_caption("AI Upscaling Overlay")
     pygame.event.set_grab(False)
     pygame.mouse.set_visible(False)
-    # Que SDL no robe el puntero; el foco vuelve al juego:
+    # 1) input atraviesa el overlay → llega al juego (mouse-look)
+    make_click_through(os.environ["DISPLAY"])
+    # 2) devolver el foco de teclado al juego, que queda debajo
     time.sleep(0.3)
     return_focus_to_game()
 

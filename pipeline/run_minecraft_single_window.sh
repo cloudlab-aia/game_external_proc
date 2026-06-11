@@ -36,6 +36,14 @@ echo -n "Esperando frames del juego"
 while [ ! -f "$SHM_PATH" ]; do echo -n "."; sleep 1; done
 echo " ¡listo!"
 
+# Colocar la ventana del juego cubriendo la pantalla: como el overlay es
+# click-through, el clic para capturar el puntero debe caer sobre la ventana
+# del juego que está debajo. Maximizarla asegura que cae siempre sobre ella.
+GW=$(DISPLAY="$GAME_DISPLAY" xdotool search --name Minecraft 2>/dev/null | tail -1)
+if [ -n "$GW" ]; then
+    DISPLAY="$GAME_DISPLAY" xdotool windowmove "$GW" 0 0 windowsize "$GW" 100% 100% 2>/dev/null
+fi
+
 QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY="$GAME_DISPLAY" \
     GAME_WINDOW_NAME=Minecraft \
     "$PYTHON" "$OVERLAY" &
