@@ -2199,6 +2199,94 @@ void glXSelectEventSGIX(Display *dpy, GLXDrawable drawable, unsigned long mask)
 }
 
 
+// Captura híbrida: copia el frame a memoria compartida con el mismo formato
+// que iframe_capture/wrapper_swapbuffers_shm.c para que los lectores Python
+// (benchmark_models.py, upscale_display.py) funcionen sin cambios.
+// Header de 16 bytes: uint32 width, height, seq, ready.
+
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdint.h>
+
+#define HYBRID_SHM_NAME "/framebuffer_shared"
+#define HYBRID_HEADER_SIZE 16
+
+static void hybridCaptureToShm(uint32_t width, uint32_t height)
+{
+	static struct
+	{
+		void *ptr;
+		size_t size;
+		int fd;
+		uint32_t width, height;
+	} cache = { NULL, 0, -1, 0, 0 };
+	static unsigned char *pixels = NULL;
+	static size_t pixelsSize = 0;
+	static uint32_t seqCounter = 0;
+
+	if(width == 0 || height == 0) return;
+
+	uint32_t frameSize = width * height * 4;
+	size_t totalSize = HYBRID_HEADER_SIZE + frameSize;
+
+	if(!cache.ptr || cache.size != totalSize || cache.width != width
+		|| cache.height != height)
+	{
+		if(cache.ptr)
+		{
+			munmap(cache.ptr, cache.size);
+			close(cache.fd);
+			cache.ptr = NULL;
+		}
+		if(pixelsSize < frameSize)
+		{
+			free(pixels);
+			pixels = (unsigned char *)malloc(frameSize);
+			if(!pixels) return;
+			pixelsSize = frameSize;
+		}
+		cache.fd = shm_open(HYBRID_SHM_NAME, O_CREAT | O_RDWR, 0666);
+		if(cache.fd < 0) return;
+		if(ftruncate(cache.fd, totalSize) < 0)
+		{
+			close(cache.fd);
+			return;
+		}
+		cache.ptr =
+			mmap(NULL, totalSize, PROT_READ | PROT_WRITE, MAP_SHARED, cache.fd, 0);
+		if(cache.ptr == MAP_FAILED)
+		{
+			close(cache.fd);
+			cache.ptr = NULL;
+			return;
+		}
+		cache.size = totalSize;
+		cache.width = width;
+		cache.height = height;
+	}
+
+	glFinish();
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+	uint32_t *header = (uint32_t *)cache.ptr;
+	header[0] = width;
+	header[1] = height;
+	header[2] = ++seqCounter;
+	header[3] = 0;  // escribiendo
+
+	unsigned char *shmFb = (unsigned char *)cache.ptr + HYBRID_HEADER_SIZE;
+	size_t rowBytes = width * 4;
+	for(uint32_t r = 0; r < height; ++r)
+		memcpy(shmFb + (height - 1 - r) * rowBytes, pixels + r * rowBytes,
+			rowBytes);
+
+	header[3] = 1;  // listo
+	msync(cache.ptr, HYBRID_HEADER_SIZE, MS_ASYNC);
+}
+
+
 // If the application is rendering to the back buffer, VirtualGL will read
 // back and transport the contents of the buffer whenever glXSwapBuffers() is
 // called.
@@ -2233,22 +2321,9 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
 		int width = viewport[2];
 		int height = viewport[3];
 
-		std::vector<unsigned char> pixels(width * height * 4); // RGBA
-		glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-		std::cerr << "[HYBRID] dGPU capturando frame " << width << "x" << height << std::endl;
-		// Guardar un .ppm de prueba
-		std::ofstream ofs("/tmp/frame.ppm", std::ios::binary);
-		ofs << "P6\n" << width << " " << height << "\n255\n";
-		for (int y = height - 1; y >= 0; --y) {
-			for (int x = 0; x < width; ++x) {
-				int i = (y * width + x) * 4;
-				ofs.put(pixels[i]);     // R
-				ofs.put(pixels[i + 1]); // G
-				ofs.put(pixels[i + 2]); // B
-			}
-		}
-		ofs.close();
-		std::cerr << "[HYBRID] Simulando procesamiento en iGPU (GPU 1)" << std::endl;
+		// Captura a memoria compartida — mismo formato que
+		// iframe_capture/wrapper_swapbuffers_shm.c (header IIII: w, h, seq, ready)
+		hybridCaptureToShm((uint32_t)width, (uint32_t)height);
 
 		vw->swapBuffers();
 		int interval = vw->getSwapInterval();

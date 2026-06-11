@@ -1,0 +1,22 @@
+# Entorno Python del TFG — pipeline de captura + superresolución en iGPU
+# Crear entorno:  python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+# Versiones fijadas a las del entorno openvino_env original (2026-06).
+
+# Núcleo del pipeline (captura → shm → superresolución → display)
+openvino==2025.2.0
+opencv-python==4.12.0.88
+numpy==2.2.6
+onnxruntime
+flask
+
+# Real-ESRGAN (OPCIONAL — solo para run_realesgran.py y conversión de modelos .pth)
+# Instalar la build CPU para evitar descargar la versión CUDA (~2,5 GB):
+#   pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install basicsr realesrgan
+pillow==11.3.0
+
+# Análisis y gráficas de benchmarks
+pandas
+matplotlib
+seaborn
+psutil

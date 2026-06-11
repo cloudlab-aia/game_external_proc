@@ -23,3 +23,12 @@ Makefile
 
 # Archivos de configuración de Visual Studio Code
 .vscode/
+# Entornos virtuales Python
+venv/
+.venv/
+*venv*/
+__pycache__/
+*.pyc
+
+# Binarios compilados del interceptor (regenerar con capture/build.sh)
+capture/*.so
