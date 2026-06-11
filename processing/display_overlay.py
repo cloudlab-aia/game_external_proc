@@ -112,6 +112,36 @@ def make_click_through(display_name):
     print("[INFO] overlay click-through activado (input pasa al juego)")
 
 
+def make_non_focusable(display_name):
+    """Marca la ventana como tipo DOCK + always-on-top para que el gestor de
+    ventanas NO le dé foco. Así Minecraft conserva el foco y no abre el menú
+    de pausa (Minecraft pausa al perder el foco)."""
+    try:
+        from Xlib import display as xdisplay, Xatom
+        info = pygame.display.get_wm_info()
+        wid = info.get("window")
+        if not wid:
+            return
+        d = xdisplay.Display(display_name)
+        w = d.create_resource_object("window", wid)
+
+        def atom(name):
+            return d.intern_atom(name)
+
+        w.change_property(atom("_NET_WM_WINDOW_TYPE"), Xatom.ATOM, 32,
+                          [atom("_NET_WM_WINDOW_TYPE_DOCK")])
+        w.change_property(atom("_NET_WM_STATE"), Xatom.ATOM, 32,
+                          [atom("_NET_WM_STATE_ABOVE"),
+                           atom("_NET_WM_STATE_SKIP_TASKBAR"),
+                           atom("_NET_WM_STATE_SKIP_PAGER")])
+        # Pista de no aceptar foco de entrada (WM_HINTS input = False)
+        w.set_wm_hints(flags=(1 << 0), input=0)
+        d.sync()
+        print("[INFO] overlay marcado no-focusable (tipo dock, always-on-top)")
+    except Exception as e:
+        print(f"[WARN] no se pudo marcar no-focusable: {e}")
+
+
 def return_focus_to_game():
     """Devuelve el foco de teclado a la ventana del juego (queda debajo)."""
     try:
@@ -133,7 +163,9 @@ def main():
     pygame.mouse.set_visible(False)
     # 1) input atraviesa el overlay → llega al juego (mouse-look)
     make_click_through(os.environ["DISPLAY"])
-    # 2) devolver el foco de teclado al juego, que queda debajo
+    # 2) overlay no-focusable → Minecraft no pierde el foco ni pausa
+    make_non_focusable(os.environ["DISPLAY"])
+    # 3) por si acaso, devolver el foco al juego que queda debajo
     time.sleep(0.3)
     return_focus_to_game()
 
