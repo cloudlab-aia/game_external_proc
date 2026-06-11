@@ -27,9 +27,11 @@ MAX_DIM = 8192
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCALE = int(os.environ.get("FSRCNN_SCALE", "4"))
-MODEL_XML = os.path.join(REPO_DIR, "models", f"fsrcnn_x{SCALE}_ov.xml")
+MODEL_XML = os.path.join(REPO_DIR, "models", "openvino_ir", f"FSRCNN_x{SCALE}.xml")
 # Resolución de entrada del modelo IR (debe coincidir con la usada al guardarlo)
-IN_W, IN_H = (480, 270) if SCALE == 4 else (960, 540)
+# Entrada que produce salida 1080p según la escala (modelo IR de entrada flexible,
+# reshapeado a tamaño fijo al cargar para máxima velocidad en tiempo real).
+IN_W, IN_H = {4: (480, 270), 3: (640, 360), 2: (960, 540)}[SCALE]
 
 core = ov.Core()
 device = "GPU" if "GPU" in core.available_devices else "CPU"
@@ -37,7 +39,9 @@ print(f"[INFO] Dispositivos: {core.available_devices} → usando {device}")
 print(f"[INFO] Modelo: {MODEL_XML} (entrada {IN_W}x{IN_H}, escala x{SCALE})")
 
 config = {"CACHE_DIR": "/tmp/openvino_cache"}
-compiled = core.compile_model(core.read_model(MODEL_XML), device, config)
+_model = core.read_model(MODEL_XML)
+_model.reshape([1, IN_H, IN_W, 1])  # NHWC, canal Y; fija la entrada flexible
+compiled = core.compile_model(_model, device, config)
 out_port = compiled.output(0)
 # Cola asíncrona: una petición en vuelo mientras la CPU prepara la siguiente
 infer = compiled.create_infer_request()

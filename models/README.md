@@ -4,8 +4,7 @@
 |---|---|---|
 | `single-image-super-resolution-1032.xml/.bin` | OpenVINO IR | **`processing/upscale_display.py` (pipeline principal).** Modelo de Intel Open Model Zoo, x3, dos entradas (LR 480×270 + HR original). |
 | `FSRCNN_x2.pb / _x3.pb / _x4.pb` | TensorFlow | Fuente de los IR de abajo; `processing/upscale_fsrcnn.py`. |
-| `fsrcnn_x4_ov.xml/.bin`, `fsrcnn_x2_ov.xml/.bin` | OpenVINO IR (entrada **fija**) | **Vía jugable** (`processing/upscale_fsrcnn_ov.py`, overlay). Entrada fija (480×270 / 960×540) → máxima velocidad. ~13 ms/frame en iGPU. |
-| `openvino_ir/FSRCNN_x{2,3,4}.xml/.bin` | OpenVINO IR (entrada **flexible**) | Modelos canónicos del estudio de viabilidad (los que vio el tutor). Cualquier resolución de entrada. Usados por `phase2/` y `benchmarks/viability/`. Salida NCHW `(1,1,H,W)`. |
+| `openvino_ir/FSRCNN_x{2,3,4}.xml/.bin` | OpenVINO IR (entrada **flexible**) | **Modelos canónicos únicos** (los que vio el tutor). Entrada flexible (cualquier resolución). Los usa todo: `phase2/`, `benchmarks/viability/` y la vía jugable en tiempo real (`processing/upscale_fsrcnn_ov.py`, `processing/display_overlay.py`), que los reshapean a entrada fija al cargar para máxima velocidad (~15 ms/frame, ~66 FPS en iGPU). Salida NCHW `(1,1,H,W)`. |
 | `RealESRGAN_x4.onnx` | ONNX | `processing/upscale_openvino.py`, `run_realesrgan_onnx.py`. |
 | `RealESRGAN_x4plus.pth` | PyTorch | `processing/run_realesgran.py` (comparativa de calidad). |
 | `realesr-animevideov3.pth` | PyTorch | Variante ligera de Real-ESRGAN para vídeo. |

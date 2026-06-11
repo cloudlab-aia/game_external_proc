@@ -33,14 +33,16 @@ MAX_DIM = 8192
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCALE = int(os.environ.get("FSRCNN_SCALE", "4"))
-MODEL_XML = os.path.join(REPO_DIR, "models", f"fsrcnn_x{SCALE}_ov.xml")
-IN_W, IN_H = (480, 270) if SCALE == 4 else (960, 540)
+MODEL_XML = os.path.join(REPO_DIR, "models", "openvino_ir", f"FSRCNN_x{SCALE}.xml")
+# Entrada que produce salida 1080p según la escala (IR flexible reshapeado a fijo).
+IN_W, IN_H = {4: (480, 270), 3: (640, 360), 2: (960, 540)}[SCALE]
 GAME_WINDOW_NAME = os.environ.get("GAME_WINDOW_NAME", "Minecraft")
 
 core = ov.Core()
 device = "GPU" if "GPU" in core.available_devices else "CPU"
-compiled = core.compile_model(core.read_model(MODEL_XML), device,
-                              {"CACHE_DIR": "/tmp/openvino_cache"})
+_model = core.read_model(MODEL_XML)
+_model.reshape([1, IN_H, IN_W, 1])  # NHWC, canal Y; fija la entrada flexible
+compiled = core.compile_model(_model, device, {"CACHE_DIR": "/tmp/openvino_cache"})
 infer = compiled.create_infer_request()
 print(f"[INFO] {device}, modelo FSRCNN x{SCALE} ({IN_W}x{IN_H})")
 
