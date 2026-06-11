@@ -1,13 +1,17 @@
 import os
+import struct
 import time
 import cv2
 import numpy as np
 import openvino as ov
 
 # Configuración
-WIDTH, HEIGHT = 1920, 1080
-FRAME_SIZE = WIDTH * HEIGHT * 4
 SHM_NAME = "/dev/shm/framebuffer_shared"
+# Header del wrapper (capture/wrapper_swapbuffers_shm.c):
+# uint32 width, height, seq, ready — seguido del frame RGBA ya volteado
+HEADER_FMT = "IIII"
+HEADER_SIZE = struct.calcsize(HEADER_FMT)
+MAX_DIM = 8192  # sanidad: descartar headers corruptos
 MODEL_XML = "/home/ogg/Desktop/AIA/game_external_proc/models/single-image-super-resolution-1032.xml"
 MODEL_BIN = "/home/ogg/Desktop/AIA/game_external_proc/models/single-image-super-resolution-1032.bin"
 
@@ -68,36 +72,62 @@ def preprocess_frame(frame):
     
     return lr_blob, hr_blob
 
-def postprocess(output):
-    """Convierte la salida del modelo a imagen BGR"""
-    out_img = output[0].transpose(1, 2, 0)  # CHW → HWC
-    out_img = (out_img * 255.0).clip(0, 255).astype(np.uint8)
-    img_bgr = cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR)
-    return img_bgr
+def postprocess(residual, hr_blob):
+    """Convierte la salida del modelo a imagen BGR.
+
+    El modelo single-image-super-resolution-1032 devuelve un RESIDUO de alta
+    frecuencia (media ≈0); la imagen final es ese residuo sumado a la entrada
+    bicúbica (input 1). Usar la salida directamente da una imagen casi negra.
+    """
+    sr = (residual + hr_blob)[0].transpose(1, 2, 0)  # CHW → HWC
+    out_img = (sr * 255.0).clip(0, 255).astype(np.uint8)
+    return cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR)
 
 def upscale_frame(frame_bgr):
-    """Aplica superresolución usando el modelo ESPCN con dos entradas"""
+    """Aplica superresolución usando el modelo de dos entradas (LR + bicúbica)"""
     lr_blob, hr_blob = preprocess_frame(frame_bgr)
-    
+
     # Preparar las entradas como diccionario usando los nombres de los inputs
     inputs = {
-        input_layers[0]: lr_blob,  # Baja resolución 
-        input_layers[1]: hr_blob   # Alta resolución de referencia
+        input_layers[0]: lr_blob,  # Baja resolución
+        input_layers[1]: hr_blob   # Alta resolución de referencia (bicúbica)
     }
-    
-    # Ejecutar inferencia
+
+    # Ejecutar inferencia → residuo, que se suma a la bicúbica
     result = compiled_model(inputs)[output_layer]
-    return postprocess(result)
+    return postprocess(result, hr_blob)
+
+_last_seq = 0
 
 def get_shared_frame():
+    """Lee un frame nuevo de la memoria compartida (formato con header).
+
+    Devuelve None si no hay frame nuevo (mismo seq) o si la shm no existe aún.
+    El wrapper ya escribe el frame volteado (origen arriba-izquierda): no
+    hace falta flip.
+    """
+    global _last_seq
     try:
         fd = os.open(SHM_NAME, os.O_RDONLY)
-        buf = os.read(fd, FRAME_SIZE)
-        os.close(fd)
-        frame = np.frombuffer(buf, dtype=np.uint8).reshape((HEIGHT, WIDTH, 4))
-        frame_bgr = cv2.cvtColor(frame[:, :, :3], cv2.COLOR_RGBA2BGR)  # OJO: RGBA→BGR
-        frame_bgr = cv2.flip(frame_bgr, 0)  # Corrige inversión vertical
-        return frame_bgr
+        try:
+            header = os.read(fd, HEADER_SIZE)
+            if len(header) < HEADER_SIZE:
+                return None
+            width, height, seq, ready = struct.unpack(HEADER_FMT, header)
+            if not ready or seq == _last_seq:
+                return None
+            if not (0 < width <= MAX_DIM and 0 < height <= MAX_DIM):
+                return None
+            buf = os.read(fd, width * height * 4)
+            if len(buf) < width * height * 4:
+                return None
+        finally:
+            os.close(fd)
+        _last_seq = seq
+        frame = np.frombuffer(buf, dtype=np.uint8).reshape((height, width, 4))
+        return cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+    except FileNotFoundError:
+        return None
     except Exception as e:
         print("[WARN] Error al leer frame compartido:", e)
         return None

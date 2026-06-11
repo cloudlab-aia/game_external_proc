@@ -37,7 +37,7 @@ sleep 3 # da más tiempo para que el wrapper cree la memoria compartida
 echo "[4/4] Lanzando upscaling IA (OpenVINO iGPU) → ventana en monitor $REAL_DISPLAY..."
 # DISPLAY=:0  → la ventana cv2.imshow() aparece en el monitor físico de la iGPU
 # CUDA_VISIBLE_DEVICES="" → ocultar dGPU NVIDIA a OpenCV/OpenVINO (usan iGPU Intel)
-CUDA_VISIBLE_DEVICES="" DISPLAY=$REAL_DISPLAY IGPU_MONITOR_X=$IGPU_MONITOR_X python3 $UPSCALE_SCRIPT &
+QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY=$REAL_DISPLAY IGPU_MONITOR_X=$IGPU_MONITOR_X python3 $UPSCALE_SCRIPT &
 UPSCALE_PID=$!
 
 # --- Paso 5: Mostrar estado ---

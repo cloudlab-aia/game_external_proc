@@ -27,6 +27,87 @@ static void (*real_glXSwapBuffers)(Display* dpy, GLXDrawable drawable) = NULL;
 static unsigned char *pixels = NULL;
 static size_t pixels_size = 0;
 
+// --- Interposición de dlsym / glXGetProcAddress ---
+// LWJGL3/GLFW (Minecraft >= 1.13) no llama a glXSwapBuffers por enlace
+// dinámico normal: carga libGL con dlopen() y resuelve los símbolos con
+// dlsym() o glXGetProcAddressARB(), lo que se saltaría un LD_PRELOAD
+// clásico. Interceptamos también esas rutas de resolución para devolver
+// nuestro wrapper en su lugar.
+
+typedef void (*GLXFuncPtr)(void);
+
+void glXSwapBuffers(Display* dpy, GLXDrawable drawable);
+GLXFuncPtr glXGetProcAddressARB(const GLubyte *procName);
+
+static void *(*real_dlsym)(void *, const char *) = NULL;
+
+static int init_real_dlsym(void) {
+    if (real_dlsym) return 1;
+    // glibc moderna (>= 2.34) integra libdl en libc; la versión del símbolo
+    // sigue siendo la histórica en x86_64. Probar ambas por compatibilidad.
+    real_dlsym = dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.2.5");
+    if (!real_dlsym) real_dlsym = dlvsym(RTLD_NEXT, "dlsym", "GLIBC_2.34");
+    if (!real_dlsym)
+        fprintf(stderr, "[WRAPPER] No se pudo resolver dlsym real\n");
+    return real_dlsym != NULL;
+}
+
+void *dlsym(void *handle, const char *symbol) {
+    if (!init_real_dlsym()) return NULL;
+    if (symbol) {
+        if (strcmp(symbol, "glXSwapBuffers") == 0)
+            return (void *)glXSwapBuffers;
+        if (strcmp(symbol, "glXGetProcAddress") == 0 ||
+            strcmp(symbol, "glXGetProcAddressARB") == 0)
+            return (void *)glXGetProcAddressARB;
+    }
+    return real_dlsym(handle, symbol);
+}
+
+GLXFuncPtr glXGetProcAddressARB(const GLubyte *procName) {
+    static GLXFuncPtr (*real_gpa)(const GLubyte *) = NULL;
+    if (procName && strcmp((const char *)procName, "glXSwapBuffers") == 0)
+        return (GLXFuncPtr)glXSwapBuffers;
+    if (!real_gpa) {
+        if (!init_real_dlsym()) return NULL;
+        real_gpa = (GLXFuncPtr (*)(const GLubyte *))
+            real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
+        if (!real_gpa) return NULL;
+    }
+    return real_gpa(procName);
+}
+
+GLXFuncPtr glXGetProcAddress(const GLubyte *procName) {
+    return glXGetProcAddressARB(procName);
+}
+
+// --- Filtro por proceso ---
+// Con LD_PRELOAD sobre un launcher, TODOS sus procesos hijos heredan el
+// wrapper. Si más de uno hace swaps (launcher CEF + juego), ambos escriben
+// en la misma shm con tamaños distintos y el ftruncate de uno invalida el
+// mapeo del otro (SIGBUS). FRAME_CAPTURE_EXE limita la captura al proceso
+// cuyo nombre contenga la subcadena indicada (p. ej. "java" = solo el juego).
+static int capture_enabled(void) {
+    static int checked = 0, enabled = 1;
+    if (!checked) {
+        checked = 1;
+        const char *want = getenv("FRAME_CAPTURE_EXE");
+        if (want && *want) {
+            char comm[64] = {0};
+            FILE *f = fopen("/proc/self/comm", "r");
+            if (f) {
+                if (!fgets(comm, sizeof(comm), f)) comm[0] = 0;
+                fclose(f);
+            }
+            comm[strcspn(comm, "\n")] = 0;
+            enabled = (strstr(comm, want) != NULL);
+            fprintf(stderr, "[WRAPPER] proceso '%s': captura %s\n",
+                    comm, enabled ? "ACTIVA" : "desactivada");
+        }
+    }
+    return enabled;
+}
+
 static inline int setup_shm(uint32_t width, uint32_t height) {
     uint32_t frame_size = width * height * 4;
     size_t total_size = HEADER_SIZE + frame_size;
@@ -73,20 +154,36 @@ static inline int setup_shm(uint32_t width, uint32_t height) {
 
 void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     if (!real_glXSwapBuffers) {
-        real_glXSwapBuffers = dlsym(RTLD_NEXT, "glXSwapBuffers");
+        // Usar real_dlsym directamente: nuestro dlsym interceptado devolvería
+        // este mismo wrapper y causaría recursión infinita.
+        if (!init_real_dlsym()) exit(1);
+        real_glXSwapBuffers = real_dlsym(RTLD_NEXT, "glXSwapBuffers");
         if (!real_glXSwapBuffers) {
             fprintf(stderr, "Error al enlazar glXSwapBuffers: %s\n", dlerror());
             exit(1);
         }
     }
 
+    if (!capture_enabled()) goto call_real;
+
     glFinish();
-    
-    GLint viewport[4];
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    uint32_t width = (uint32_t)viewport[2];
-    uint32_t height = (uint32_t)viewport[3];
-    
+
+    // Tamaño del drawable (ventana), no del viewport: juegos como Minecraft
+    // cambian glViewport varias veces por frame (GUI, passes intermedios) y
+    // en el swap el viewport puede no coincidir con la ventana.
+    uint32_t width = 0, height = 0;
+    unsigned int qw = 0, qh = 0;
+    glXQueryDrawable(dpy, drawable, GLX_WIDTH, &qw);
+    glXQueryDrawable(dpy, drawable, GLX_HEIGHT, &qh);
+    width = (uint32_t)qw;
+    height = (uint32_t)qh;
+    if (width == 0 || height == 0) {
+        GLint viewport[4];
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        width = (uint32_t)viewport[2];
+        height = (uint32_t)viewport[3];
+    }
+
     if (width == 0 || height == 0 || !setup_shm(width, height)) {
         goto call_real;
     }
