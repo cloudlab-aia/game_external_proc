@@ -15,6 +15,7 @@ muestran o transmiten el resultado.
 | `upscale_fsrcnn.py` | OpenCV dnn_superres | Variante FSRCNN (modelos .pb), OpenCL sobre iGPU. |
 | `run_realesgran.py` | PyTorch | Real-ESRGAN nativo (.pth). Pesado; usado para comparativas de calidad, no para tiempo real. |
 | `run_realesrgan_onnx.py` | ONNX Runtime | Real-ESRGAN exportado a ONNX. |
+| `display_overlay.py` | pygame + OpenVINO | **Opción B (ventana única).** Overlay fullscreen que reescala con FSRCNN y devuelve el foco al juego (xdotool). Para `pipeline/run_minecraft_single_window.sh`. |
 | `realtime_display_igpu.py` | OpenCV | Visor en tiempo real con monitor de FPS, sin superresolución (diagnóstico). |
 | `web_stream.py` | Flask | Streaming HTTP de los frames (`http://localhost:5000/video_feed`). |
 

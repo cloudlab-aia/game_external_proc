@@ -21,3 +21,7 @@ pandas
 matplotlib
 seaborn
 psutil
+
+# Opción B (ventana única): overlay fullscreen + reenfoque de ventana
+pygame
+# (xdotool se instala por apt, no por pip)
