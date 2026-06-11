@@ -10,6 +10,12 @@
 LAUNCHER="${LAUNCHER:-$HOME/Desktop/minecraft-launcher/minecraft-launcher}"
 GAME_DISPLAY="${GAME_DISPLAY:-:1}"
 SHM_PATH="/dev/shm/framebuffer_shared"
+# Resolución de render del juego: pequeña = la dGPU renderiza pocos píxeles
+# (rápido) y la IA reconstruye 1080p. 480x270 coincide con la entrada de
+# FSRCNN x4 → reconstrucción pura sin reescalado previo.
+GAME_W="${GAME_W:-480}"
+GAME_H="${GAME_H:-270}"
+GRAB_SECONDS="${GRAB_SECONDS:-12}"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INTERCEPTOR="$REPO_DIR/capture/wrapper_swapbuffers_shm.so"
@@ -36,13 +42,22 @@ echo -n "Esperando frames del juego"
 while [ ! -f "$SHM_PATH" ]; do echo -n "."; sleep 1; done
 echo " ¡listo!"
 
-# Colocar la ventana del juego cubriendo la pantalla: como el overlay es
-# click-through, el clic para capturar el puntero debe caer sobre la ventana
-# del juego que está debajo. Maximizarla asegura que cae siempre sobre ella.
+# Encoger la ventana del juego a baja resolución (la dGPU renderiza pocos
+# píxeles) y centrarla, visible, para que puedas capturar el puntero.
 GW=$(DISPLAY="$GAME_DISPLAY" xdotool search --name Minecraft 2>/dev/null | tail -1)
 if [ -n "$GW" ]; then
-    DISPLAY="$GAME_DISPLAY" xdotool windowmove "$GW" 0 0 windowsize "$GW" 100% 100% 2>/dev/null
+    SW=$(DISPLAY="$GAME_DISPLAY" xdotool getdisplaygeometry | cut -d' ' -f1)
+    SH=$(DISPLAY="$GAME_DISPLAY" xdotool getdisplaygeometry | cut -d' ' -f2)
+    PX=$(( (SW - GAME_W) / 2 )); PY=$(( (SH - GAME_H) / 2 ))
+    DISPLAY="$GAME_DISPLAY" xdotool windowsize "$GW" "$GAME_W" "$GAME_H" \
+        windowmove "$GW" "$PX" "$PY" windowactivate "$GW" 2>/dev/null
 fi
+
+echo ""
+echo ">>> El juego corre a ${GAME_W}x${GAME_H} (render pésimo en la dGPU)."
+echo ">>> HAZ CLIC en la ventanita del juego y empieza a jugar (captura el ratón)."
+echo ">>> En $GRAB_SECONDS s el overlay cubrirá la pantalla con la versión IA a 1080p."
+for ((i=GRAB_SECONDS; i>0; i--)); do echo -n "$i "; sleep 1; done; echo
 
 QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY="$GAME_DISPLAY" \
     GAME_WINDOW_NAME=Minecraft \
