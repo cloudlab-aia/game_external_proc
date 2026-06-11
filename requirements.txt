@@ -25,3 +25,7 @@ psutil
 # Opción B (ventana única): overlay fullscreen + reenfoque de ventana
 pygame
 # (xdotool se instala por apt, no por pip)
+
+# Fase 2: métricas de calidad (PSNR/SSIM)
+scikit-image
+posix_ipc

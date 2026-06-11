@@ -36,3 +36,9 @@ capture/*.so
 # Configuración local de herramientas (no versionar)
 CLAUDE.md
 .claude/
+
+# Fase 2: frames generados en cada ejecución (no versionar)
+phase2/results/
+# Resultados crudos pesados de la matriz de viabilidad (solo se versiona thesis_submission + CSVs)
+benchmarks/viability/results/comparisons_game*/
+benchmarks/viability/logs/

@@ -18,11 +18,12 @@ libre para el render.
 
 | Carpeta | Contenido |
 |---|---|
-| [`capture/`](capture/) | Interceptor C (`LD_PRELOAD` sobre `glXSwapBuffers`) → shm con header. |
-| [`processing/`](processing/) | Superresolución en iGPU: OpenVINO (principal), ONNX Runtime, FSRCNN, Real-ESRGAN; streaming Flask. |
-| [`pipeline/`](pipeline/) | Lanzadores end-to-end (demo completa). |
-| [`benchmarks/`](benchmarks/) | Experimentos con **medidas reales** (barridos de resolución, FPS, latencia). |
-| [`results/`](results/) | CSV y capturas de los experimentos. |
+| [`capture/`](capture/) | Interceptor C (`LD_PRELOAD` sobre `glXSwapBuffers`) → shm con header. Soporta glxgears y Minecraft (LWJGL3/GLFW). |
+| [`processing/`](processing/) | Superresolución en iGPU: FSRCNN/OpenVINO (jugable, 75 FPS), sisr-1032 (calidad), ONNX, Real-ESRGAN; overlay ventana única; streaming Flask. |
+| [`pipeline/`](pipeline/) | Lanzadores end-to-end (glxgears, Minecraft dos ventanas, Minecraft ventana única). |
+| [`benchmarks/`](benchmarks/) | Experimentos con medidas reales. Incluye [`viability/`](benchmarks/viability/): estudio de viabilidad Fase 1 (580 mediciones, 6 dispositivos × 6 modelos × cargas). |
+| [`phase2/`](phase2/) | Fase 2: comparativa nativo vs híbrido (render bajo + upscaling IA) con PSNR/SSIM. |
+| [`results/`](results/) | CSV, capturas, muestras (`sample_frames/`) y el subconjunto presentado al tutor (`viability_submission/`). |
 | [`models/`](models/) | Modelos de superresolución (OpenVINO IR, ONNX, .pb, .pth). |
 | [`docs/`](docs/) | Justificación wrapper vs VirtualGL (medida) y contexto del proyecto. |
 | [`virtualgl/`](virtualgl/) | Alternativa evaluada: VirtualGL con hook de captura propio. No adoptada — ver docs. |
