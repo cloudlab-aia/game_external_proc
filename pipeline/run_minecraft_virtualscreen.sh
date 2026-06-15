@@ -22,7 +22,7 @@ SHM_PATH="/dev/shm/framebuffer_shared"
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VGLLIB="$REPO_DIR/virtualgl/build/lib"
-OVERLAY="$REPO_DIR/processing/display_overlay.py"
+OVERLAY="$REPO_DIR/processing/display_overlay_forward.py"
 PYTHON="$REPO_DIR/venv/bin/python3"; [ -x "$PYTHON" ] || PYTHON="python3"
 
 # Dependencia de runtime de VGL (turbojpeg) en ubicación estable
@@ -56,11 +56,15 @@ echo -n "Esperando"
 for i in $(seq 1 120); do [ -f "$SHM_PATH" ] && break; echo -n "."; sleep 1; done; echo
 [ -f "$SHM_PATH" ] || { echo "No llegaron frames; revisa /tmp/minecraft_virtualscreen.log"; exit 1; }
 
+# El overlay muestra el juego (oculto en :2) reescalado y REENVÍA tu teclado/
+# ratón de :1 hacia :2 vía XTEST. TARGET_DISPLAY = la pantalla virtual.
 QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY="$REAL_DISPLAY" \
+    TARGET_DISPLAY="$VIRT_DISPLAY" \
     "$PYTHON" "$OVERLAY" &
 OVERLAY_PID=$!
 
 echo ""
-echo "Minecraft corre en pantalla virtual $VIRT_DISPLAY (no se ve)."
-echo "Solo ves el overlay IA. Inicia sesión y juega. Ctrl+C aquí para salir."
+echo "Minecraft corre en pantalla virtual $VIRT_DISPLAY (oculta, render dGPU)."
+echo "Ves el overlay IA y tu teclado/ratón se reenvían al juego."
+echo "Para salir: pulsa F12 en el overlay, o Ctrl+C aquí."
 wait $LAUNCHER_PID
