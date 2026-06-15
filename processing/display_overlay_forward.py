@@ -101,6 +101,25 @@ class InputForwarder:
             except Exception:
                 pass
 
+    def detect_gameplay(self):
+        """True si el juego tiene el puntero agarrado (modo partida).
+
+        Intenta agarrar el puntero: si está ocupado (AlreadyGrabbed), lo tiene
+        Minecraft → estamos en partida (ratón relativo). Si lo conseguimos, lo
+        soltamos al instante → estamos en menú (ratón absoluto)."""
+        root = self.d.screen().root
+        try:
+            res = root.grab_pointer(False, 0, X.GrabModeAsync, X.GrabModeAsync,
+                                    X.NONE, X.NONE, X.CurrentTime)
+            status = getattr(res, "status", res)
+            if status == X.GrabSuccess:
+                self.d.ungrab_pointer(X.CurrentTime)
+                self.d.flush()
+                return False
+            return True
+        except Exception:
+            return False
+
     def _keycode(self, keysym_name):
         if keysym_name not in self._cache:
             ks = XK.string_to_keysym(keysym_name)
@@ -118,15 +137,20 @@ class InputForwarder:
             xtest.fake_input(self.d, X.KeyPress if press else X.KeyRelease, kc)
             self.d.sync()
 
-    def motion(self, dx, dy, scr_w, scr_h):
-        """Acumula el delta del ratón y reenvía posición ABSOLUTA en :2."""
-        gx, gy, gw, gh = self.geo
-        # escalar el delta del overlay (pantalla real) al tamaño del juego
-        self.cx = min(max(self.cx + dx * gw / scr_w, 0), gw)
-        self.cy = min(max(self.cy + dy * gh / scr_h, 0), gh)
-        ax, ay = int(gx + self.cx), int(gy + self.cy)
-        xtest.fake_input(self.d, X.MotionNotify, x=ax, y=ay)
-        self.d.sync()
+    def motion(self, dx, dy, scr_w, scr_h, gameplay):
+        """Reenvía el ratón: relativo en partida, absoluto en menú."""
+        if gameplay:
+            # partida: Minecraft lee deltas crudos (mouse-look)
+            if dx or dy:
+                xtest.fake_input(self.d, X.MotionNotify, detail=True, x=int(dx), y=int(dy))
+                self.d.sync()
+        else:
+            # menú: posición absoluta para apuntar botones
+            gx, gy, gw, gh = self.geo
+            self.cx = min(max(self.cx + dx * gw / scr_w, 0), gw)
+            self.cy = min(max(self.cy + dy * gh / scr_h, 0), gh)
+            xtest.fake_input(self.d, X.MotionNotify, x=int(gx + self.cx), y=int(gy + self.cy))
+            self.d.sync()
 
     def button(self, btn, press):
         xtest.fake_input(self.d, X.ButtonPress if press else X.ButtonRelease, btn)
@@ -177,9 +201,12 @@ def main():
 
     last_seq = 0
     frames = 0
+    gameplay = False
     running = True
     while running:
         frames += 1
+        if frames % 15 == 0:
+            gameplay = fwd.detect_gameplay()   # menú (absoluto) vs partida (relativo)
         if frames % 120 == 0:
             fwd.focus_game()             # re-afirmar foco por si lo pierde
         for ev in pygame.event.get():
@@ -194,7 +221,7 @@ def main():
                 fwd.key(ev.key, ev.unicode, False)
             elif ev.type == pygame.MOUSEMOTION:
                 dx, dy = ev.rel
-                fwd.motion(dx, dy, sw, sh)
+                fwd.motion(dx, dy, sw, sh, gameplay)
             elif ev.type == pygame.MOUSEBUTTONDOWN:
                 fwd.button(ev.button, True)
             elif ev.type == pygame.MOUSEBUTTONUP:
