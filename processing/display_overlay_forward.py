@@ -243,6 +243,18 @@ def main():
         if (ow, oh) != (sw, sh):
             surf = pygame.transform.scale(surf, (sw, sh))
         screen.blit(surf, (0, 0))
+
+        # Cursor sintético en menús: glReadPixels no captura el cursor del
+        # servidor X, así que lo dibujamos según la posición que reenviamos.
+        if not gameplay:
+            gx, gy, gw, gh = fwd.geo
+            px = int(fwd.cx / gw * sw)
+            py = int(fwd.cy / gh * sh)
+            arrow = [(px, py), (px, py + 22), (px + 6, py + 16), (px + 11, py + 24),
+                     (px + 15, py + 22), (px + 10, py + 14), (px + 18, py + 14)]
+            pygame.draw.polygon(screen, (255, 255, 255), arrow)
+            pygame.draw.polygon(screen, (0, 0, 0), arrow, 2)
+
         pygame.display.flip()
 
     pygame.quit()
