@@ -162,12 +162,48 @@ adoptada del estudio de viabilidad — **iGPU + OpenVINO + FSRCNN IR**.
 
 ---
 
+## 9. Pipeline unificado con pantalla virtual real (jugable)
+
+Se completó la arquitectura del enunciado de extremo a extremo: el juego
+corre en una pantalla virtual oculta, renderizado por la dGPU, y solo se ve
+el resultado reescalado en una ventana real jugable.
+
+```
+launcher normal (:1)
+  └─[capture/game_launch_interposer.so]─> solo el proceso del juego va a
+       pantalla virtual Xvfb (:2), render dGPU vía VirtualGL, captura a shm
+         └─> iGPU FSRCNN/OpenVINO ─> processing/display_overlay_forward.py
+              muestra en ventana real (:1) + reenvía teclado/ratón a (:2)
+```
+
+Piezas y problemas resueltos (todo en KDE Wayland):
+- **Interceptor de lanzamiento** (`game_launch_interposer.c`): se precarga en
+  el launcher, intercepta `execve`/`posix_spawn`… y reescribe el entorno SOLO
+  del proceso del juego (argv con `net.minecraft`) para mandarlo a la pantalla
+  virtual con VirtualGL. El launcher se usa con normalidad.
+- **Compatibilidad VirtualGL ↔ Minecraft**: 1.21.2 (motor blaze3d/GL moderno)
+  crashea en el driver NVIDIA bajo VGL; **1.12.2 (OpenGL clásico) funciona**.
+  Documenta el límite de VGL con motores GL modernos.
+- **Foco**: sin gestor de ventanas en Xvfb el juego no recibía foco y se
+  quedaba en pausa; el overlay fija el foco (`XSetInputFocus`) y lo re-afirma.
+- **Reenvío de ratón consciente del modo**: en partida Minecraft recoloca el
+  puntero al centro y lee deltas → se reenvía movimiento **relativo**; en
+  menús se reenvía posición **absoluta** (apuntar botones). El modo se detecta
+  sondeando el grab del puntero en `:2`.
+- **Cursor sintético**: `glReadPixels` no captura el cursor del servidor X, así
+  que se dibuja en el overlay según la posición reenviada (solo en menús).
+
+Resultado: Minecraft 1.12.2 jugable, cámara suave y menús navegables, viendo
+la salida IA a 1080p, con el juego renderizando oculto en la dGPU.
+
 ## Estado actual
 
 Funciona y está verificado:
 - Captura de glxgears y Minecraft real (interceptor propio).
 - Upscaling FSRCNN/OpenVINO en iGPU en tiempo real (~66 FPS).
 - Minecraft jugable en ventana única con la salida reescalada.
+- **Pantalla virtual real + juego jugable** (Xvfb + VirtualGL + reenvío de
+  input): la arquitectura completa del enunciado de extremo a extremo.
 - Framework de Fase 2 operativo (verificado con frames reales).
 - Estudio de viabilidad (Fase 1) integrado.
 
