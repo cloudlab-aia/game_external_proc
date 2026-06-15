@@ -55,11 +55,51 @@ SPECIAL_KEYS = {
 
 
 class InputForwarder:
-    """Reinyecta teclado/ratón en el display virtual vía XTEST."""
+    """Reinyecta teclado/ratón en el display virtual vía XTEST.
+
+    - Da foco a la ventana del juego (en Xvfb no hay gestor de ventanas, así
+      que sin esto Minecraft se queda en pausa por no tener foco).
+    - El ratón se reenvía como posición ABSOLUTA (cursor virtual rastreado):
+      sirve para los menús (apuntar botones) y aproxima el mirar en juego.
+    """
 
     def __init__(self, target_display):
         self.d = xdisplay.Display(target_display)
         self._cache = {}
+        self.win = None
+        self.geo = (0, 0, 1280, 720)
+        self._find_game_window()
+        # cursor virtual en el centro de la ventana del juego
+        x, y, w, h = self.geo
+        self.cx, self.cy = w / 2.0, h / 2.0
+
+    def _find_game_window(self):
+        """Localiza la ventana mapeada más grande en :2 (el juego)."""
+        root = self.d.screen().root
+        best, best_area = None, 0
+        try:
+            for w in root.query_tree().children:
+                attrs = w.get_attributes()
+                if attrs.map_state != X.IsViewable:
+                    continue
+                g = w.get_geometry()
+                area = g.width * g.height
+                if area > best_area:
+                    best, best_area, self.geo = w, area, (g.x, g.y, g.width, g.height)
+        except Exception as e:
+            print(f"[WARN] no se localizó la ventana del juego: {e}")
+        self.win = best
+        if best:
+            print(f"[INFO] ventana del juego en :2 geometría {self.geo}")
+
+    def focus_game(self):
+        if self.win:
+            try:
+                self.win.set_input_focus(X.RevertToParent, X.CurrentTime)
+                self.win.configure(stack_mode=X.Above)
+                self.d.sync()
+            except Exception:
+                pass
 
     def _keycode(self, keysym_name):
         if keysym_name not in self._cache:
@@ -78,10 +118,15 @@ class InputForwarder:
             xtest.fake_input(self.d, X.KeyPress if press else X.KeyRelease, kc)
             self.d.sync()
 
-    def motion(self, dx, dy):
-        if dx or dy:
-            xtest.fake_input(self.d, X.MotionNotify, detail=True, x=int(dx), y=int(dy))
-            self.d.sync()
+    def motion(self, dx, dy, scr_w, scr_h):
+        """Acumula el delta del ratón y reenvía posición ABSOLUTA en :2."""
+        gx, gy, gw, gh = self.geo
+        # escalar el delta del overlay (pantalla real) al tamaño del juego
+        self.cx = min(max(self.cx + dx * gw / scr_w, 0), gw)
+        self.cy = min(max(self.cy + dy * gh / scr_h, 0), gh)
+        ax, ay = int(gx + self.cx), int(gy + self.cy)
+        xtest.fake_input(self.d, X.MotionNotify, x=ax, y=ay)
+        self.d.sync()
 
     def button(self, btn, press):
         xtest.fake_input(self.d, X.ButtonPress if press else X.ButtonRelease, btn)
@@ -127,11 +172,16 @@ def main():
     pygame.event.set_grab(True)          # capturar todo el input
     pygame.mouse.set_visible(False)
     pygame.mouse.get_rel()               # descartar primer delta
-    print("[INFO] Input capturado y reenviado. ESC físico (F12) para salir.")
+    fwd.focus_game()                     # quitar la pausa por falta de foco
+    print("[INFO] Input capturado y reenviado. F12 para salir.")
 
     last_seq = 0
+    frames = 0
     running = True
     while running:
+        frames += 1
+        if frames % 120 == 0:
+            fwd.focus_game()             # re-afirmar foco por si lo pierde
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 running = False
@@ -144,7 +194,7 @@ def main():
                 fwd.key(ev.key, ev.unicode, False)
             elif ev.type == pygame.MOUSEMOTION:
                 dx, dy = ev.rel
-                fwd.motion(dx, dy)
+                fwd.motion(dx, dy, sw, sh)
             elif ev.type == pygame.MOUSEBUTTONDOWN:
                 fwd.button(ev.button, True)
             elif ev.type == pygame.MOUSEBUTTONUP:
