@@ -47,7 +47,7 @@ static char **rewrite_env(char *const base[]) {
 
     int n = 0;
     while (base && base[n]) n++;
-    char **out = malloc(sizeof(char *) * (n + 8));
+    char **out = malloc(sizeof(char *) * (n + 24));
     int o = 0;
     for (int i = 0; i < n; i++) {
         int skip = 0;
@@ -61,8 +61,20 @@ static char **rewrite_env(char *const base[]) {
     if (vpre) { snprintf(buf, sizeof(buf), "LD_PRELOAD=%s", vpre); out[o++] = strdup(buf); }
     if (vldp) { snprintf(buf, sizeof(buf), "LD_LIBRARY_PATH=%s", vldp); out[o++] = strdup(buf); }
     // WAYLAND_DISPLAY se omite (ya filtrada arriba)
+
+    // GAME_EXTRA_ENV: pares KEY=VAL separados por ';' a inyectar tal cual.
+    // Lo usa la vía PRIME (__NV_PRIME_RENDER_OFFLOAD, __GLX_VENDOR_LIBRARY_NAME).
+    const char *extra = getenv("GAME_EXTRA_ENV");
+    if (extra && *extra) {
+        char *copy = strdup(extra), *tok, *save = NULL;
+        for (tok = strtok_r(copy, ";", &save); tok; tok = strtok_r(NULL, ";", &save))
+            if (*tok) out[o++] = strdup(tok);
+        free(copy);
+    }
+
     out[o] = NULL;
-    fprintf(stderr, "[INTERPOSER] Juego detectado → pantalla virtual %s (VGL en %s)\n", vdisp, vgld);
+    fprintf(stderr, "[INTERPOSER] Juego detectado → pantalla virtual %s%s\n",
+            vdisp, extra && *extra ? " (PRIME)" : " (VGL)");
     return out;
 }
 
