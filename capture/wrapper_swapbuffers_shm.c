@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdint.h>
+#include <time.h>
 
 #define SHM_NAME "/framebuffer_shared"
 #define HEADER_SIZE 16
@@ -106,6 +107,27 @@ static int capture_enabled(void) {
         }
     }
     return enabled;
+}
+
+// Sello de tiempo de captura en un buzón APARTE (/framebuffer_ts, 16 bytes:
+// uint32 seq, 4 de relleno, uint64 nanosegundos CLOCK_MONOTONIC). No toca el
+// formato del frame. Lo lee el medidor de latencia para calcular el tiempo
+// captura→pantalla. CLOCK_MONOTONIC es comparable entre procesos.
+static void *ts_ptr = NULL;
+static void write_capture_ts(uint32_t seq) {
+    if (!ts_ptr) {
+        int fd = shm_open("/framebuffer_ts", O_CREAT | O_RDWR, 0666);
+        if (fd < 0) return;
+        if (ftruncate(fd, 16) == 0)
+            ts_ptr = mmap(NULL, 16, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        close(fd);
+        if (ts_ptr == MAP_FAILED) { ts_ptr = NULL; return; }
+    }
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    uint64_t ns = (uint64_t)t.tv_sec * 1000000000ULL + (uint64_t)t.tv_nsec;
+    *((uint32_t*)ts_ptr) = seq;
+    *((uint64_t*)((char*)ts_ptr + 8)) = ns;
 }
 
 static inline int setup_shm(uint32_t width, uint32_t height) {
@@ -218,6 +240,7 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     }
 
     header[3] = 1; // listo
+    write_capture_ts(seq_counter);   // sello de tiempo para medir latencia
     // Usar MS_ASYNC para no bloquear
     msync(shm_cache.ptr, HEADER_SIZE, MS_ASYNC);
 
