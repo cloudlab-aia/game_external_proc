@@ -196,14 +196,38 @@ Piezas y problemas resueltos (todo en KDE Wayland):
 Resultado: Minecraft 1.12.2 jugable, cámara suave y menús navegables, viendo
 la salida IA a 1080p, con el juego renderizando oculto en la dGPU.
 
+## 10. Pantalla virtual vía PRIME render offload (sin VirtualGL, sin root)
+
+VirtualGL permitía la pantalla virtual pero crashea con Minecraft moderno
+(1.21) y shaders. Se encontró una vía mejor: el juego corre en la pantalla
+virtual oculta (Xvfb) pero el render 3D lo hace la dGPU NVIDIA de forma
+**nativa** mediante PRIME render offload (`__NV_PRIME_RENDER_OFFLOAD=1` +
+`__GLX_VENDOR_LIBRARY_NAME=nvidia`), sin la capa de VirtualGL.
+
+Verificado en este equipo: en Xvfb el renderer sin PRIME es `llvmpipe`
+(software); con PRIME es `NVIDIA GeForce RTX 5060` (dGPU). La captura vuelve a
+ser el interceptor propio (la vía rápida), no el hook de VGL.
+
+Ventajas frente a VirtualGL y frente a un segundo servidor Xorg (opción B):
+- Sin la incompatibilidad de VGL → **Minecraft moderno (1.20/1.21) y shaders**.
+- Sin root, sin tocar `xorg.conf` → sin riesgo para la sesión.
+- Captura con el wrapper propio (2,7–3,2× menos overhead que VGL).
+
+Implementación: `game_launch_interposer.c` gana `GAME_EXTRA_ENV` (pares
+KEY=VAL) para inyectar las variables PRIME solo al proceso del juego; la vía
+VGL queda intacta si no se usa. Lanzador: `pipeline/run_minecraft_virtualscreen_prime.sh`.
+**Confirmado funcionando con Minecraft 1.20.**
+
 ## Estado actual
 
 Funciona y está verificado:
 - Captura de glxgears y Minecraft real (interceptor propio).
 - Upscaling FSRCNN/OpenVINO en iGPU en tiempo real (~66 FPS).
 - Minecraft jugable en ventana única con la salida reescalada.
-- **Pantalla virtual real + juego jugable** (Xvfb + VirtualGL + reenvío de
-  input): la arquitectura completa del enunciado de extremo a extremo.
+- **Pantalla virtual real + juego jugable**, dos vías: VirtualGL (Minecraft
+  clásico 1.12.2) y **PRIME render offload** (Minecraft moderno 1.20/1.21 +
+  shaders, sin root) — la arquitectura completa del enunciado de extremo a
+  extremo.
 - Framework de Fase 2 operativo (verificado con frames reales).
 - Estudio de viabilidad (Fase 1) integrado.
 
