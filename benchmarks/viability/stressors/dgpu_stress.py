@@ -22,10 +22,14 @@ def main():
 
     import onnxruntime as ort
 
-    model_path = os.environ.get(
-        "STRESS_MODEL",
-        "/home/ogg/Desktop/TFG_CODE/models/RealESRGAN_x4.onnx",
-    )
+    # Cargar las libs CUDA de los wheels nvidia (si no, cae a CPU silenciosamente)
+    try:
+        ort.preload_dlls()
+    except AttributeError:
+        pass
+
+    _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    model_path = os.environ.get("STRESS_MODEL", os.path.join(_repo, "models", "RealESRGAN_x4.onnx"))
 
     sess = ort.InferenceSession(
         model_path,
