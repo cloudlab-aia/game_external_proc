@@ -74,20 +74,34 @@ class InputForwarder:
         self.cx, self.cy = w / 2.0, h / 2.0
 
     def _find_game_window(self):
-        """Localiza la ventana mapeada más grande en :2 (el juego)."""
+        """Localiza la ventana del JUEGO en :2 (Minecraft, no el launcher).
+
+        El launcher ("Minecraft Launcher") puede ser mayor que el juego cuando
+        este renderiza a baja resolución, así que no vale "la más grande": se
+        filtra por nombre (contiene 'minecraft' pero NO 'launcher'). Si ninguna
+        casa por nombre, se cae a la mayor mapeada."""
         root = self.d.screen().root
-        best, best_area = None, 0
+        best, best_area = None, 0          # mejor candidata por nombre (juego)
+        fb, fb_area, fb_geo = None, 0, self.geo  # respaldo: la mayor mapeada
         try:
             for w in root.query_tree().children:
-                attrs = w.get_attributes()
-                if attrs.map_state != X.IsViewable:
+                if w.get_attributes().map_state != X.IsViewable:
                     continue
                 g = w.get_geometry()
                 area = g.width * g.height
-                if area > best_area:
+                try:
+                    name = (w.get_wm_name() or "").lower()
+                except Exception:
+                    name = ""
+                if area > fb_area:
+                    fb, fb_area, fb_geo = w, area, (g.x, g.y, g.width, g.height)
+                is_game = "minecraft" in name and "launcher" not in name
+                if is_game and area > best_area:
                     best, best_area, self.geo = w, area, (g.x, g.y, g.width, g.height)
         except Exception as e:
             print(f"[WARN] no se localizó la ventana del juego: {e}")
+        if best is None:
+            best, self.geo = fb, fb_geo
         self.win = best
         if best:
             print(f"[INFO] ventana del juego en :2 geometría {self.geo}")
@@ -123,6 +137,11 @@ class InputForwarder:
     def _keycode(self, keysym_name):
         if keysym_name not in self._cache:
             ks = XK.string_to_keysym(keysym_name)
+            # Caracteres ASCII (/, ., -, etc.): string_to_keysym falla con el
+            # carácter (esperaría el nombre, p.ej. "slash"), pero el keysym de
+            # un ASCII imprimible ES su codepoint.
+            if not ks and len(keysym_name) == 1:
+                ks = ord(keysym_name)
             self._cache[keysym_name] = self.d.keysym_to_keycode(ks) if ks else 0
         return self._cache[keysym_name]
 

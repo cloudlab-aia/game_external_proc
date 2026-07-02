@@ -109,6 +109,21 @@ static int capture_enabled(void) {
     return enabled;
 }
 
+// Modo "capturar sin presentar": tras capturar el frame de la VRAM, NO se llama
+// al swap real, evitando la presentación (en Xvfb la copia software es el cuello
+// copy-bound). Así la dGPU renderiza el siguiente frame de inmediato (GPU-bound)
+// y el frame queda oculto de verdad (nunca se muestra). Activar con
+// CAPTURE_SKIP_PRESENT=1. Solo aplica cuando la captura ha tenido éxito.
+static int skip_present(void) {
+    static int checked = 0, skip = 0;
+    if (!checked) {
+        checked = 1;
+        const char *v = getenv("CAPTURE_SKIP_PRESENT");
+        skip = (v && *v && *v != '0');
+    }
+    return skip;
+}
+
 // Sello de tiempo de captura en un buzón APARTE (/framebuffer_ts, 16 bytes:
 // uint32 seq, 4 de relleno, uint64 nanosegundos CLOCK_MONOTONIC). No toca el
 // formato del frame. Lo lee el medidor de latencia para calcular el tiempo
@@ -243,6 +258,9 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
     write_capture_ts(seq_counter);   // sello de tiempo para medir latencia
     // Usar MS_ASYNC para no bloquear
     msync(shm_cache.ptr, HEADER_SIZE, MS_ASYNC);
+
+    // Capturado de VRAM; si se pide, NO presentar (oculto de verdad + GPU-bound).
+    if (skip_present()) return;
 
 call_real:
     real_glXSwapBuffers(dpy, drawable);

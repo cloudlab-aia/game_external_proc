@@ -47,6 +47,13 @@ def main():
     ap.add_argument("--scale", type=int, default=4)
     ap.add_argument("--in_w", type=int, default=480)
     ap.add_argument("--in_h", type=int, default=270)
+    ap.add_argument("--measure_secs", type=float, default=0,
+                    help="Si >0: tras un calentamiento, mide el ritmo de salida "
+                         "(frames reescalados/s = FPS final) durante N s y termina.")
+    ap.add_argument("--warmup_secs", type=float, default=3)
+    ap.add_argument("--passes", type=int, default=1,
+                    help="Inferencias por frame. Simula un modelo N veces más "
+                         "pesado (mando de complejidad de la IA).")
     args = ap.parse_args()
 
     if args.device == "iGPU":
@@ -67,6 +74,11 @@ def main():
 
     print(f"[consumer] FSRCNN x{args.scale} en {args.device}, procesando frames...")
     last_seq, n = 0, 0
+    t_end = None            # fin de la ventana de medida
+    t_measure_start = None  # inicio de la ventana (tras calentamiento)
+    n_measure = 0
+    if args.measure_secs > 0:
+        t_warmup_end = time.perf_counter() + args.warmup_secs
     while True:
         frame, seq = read_frame(last_seq)
         if frame is None:
@@ -74,8 +86,22 @@ def main():
             continue
         last_seq = seq
         y = cv2.cvtColor(cv2.resize(frame, (args.in_w, args.in_h)), cv2.COLOR_BGR2YCrCb)[:, :, 0]
-        infer(y.astype(np.float32)[None, :, :, None] / 255.0)
+        yin = y.astype(np.float32)[None, :, :, None] / 255.0
+        for _ in range(args.passes):   # N pasadas = modelo N veces más pesado
+            infer(yin)
         n += 1
+        if args.measure_secs > 0:
+            now = time.perf_counter()
+            if t_measure_start is None and now >= t_warmup_end:
+                t_measure_start = now
+                t_end = now + args.measure_secs
+                n_measure = 0
+            elif t_measure_start is not None:
+                n_measure += 1
+                if now >= t_end:
+                    fps = n_measure / (now - t_measure_start)
+                    print(f"OUTPUT_FPS={fps:.2f}")
+                    return
 
 
 if __name__ == "__main__":

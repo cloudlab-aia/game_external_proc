@@ -11,6 +11,34 @@ Hardware: NVIDIA RTX 5060 (dGPU, PCI:1:0:0) + Intel Arrow Lake iGPU
 
 ---
 
+## ⚠️ CORRECCIÓN IMPORTANTE (2026-06-30)
+
+La conclusión original de este documento —que la pantalla virtual (Xvfb) es
+"50× más lenta" e "inviable para shaders" (8 FPS)— **era errónea por
+contaminación de la medida**. El 8 FPS se midió con procesos de estrés/consumo
+de los experimentos aún corriendo en segundo plano, saturando la CPU.
+
+**Medido en limpio (misma escena, sin procesos de fondo):**
+- Pantalla virtual (Xvfb + PRIME) + Minecraft + Photon @854×480: **~27 FPS**,
+  solo **~15 %** por debajo del single-window (~32 FPS). Jugable.
+- Rebajando el render: 480×270 → **~38 FPS**; 640×360 → **~35 FPS**.
+
+**Por qué glmark2 marca 50× pero Minecraft solo 15 %:** el sobrecoste de Xvfb es
+~constante (~7 ms/frame de presentación). En un render trivial (glmark2,
+0,15 ms/frame) eso supone 50×; en un render pesado (Minecraft+Photon,
+~30 ms/frame) es solo ~15 %. Ambas cifras son coherentes con un coste fijo por
+frame, no con un factor multiplicativo.
+
+**Implicación:** la pantalla virtual oculta (Xvfb + PRIME + captura) **SÍ es
+viable para el demo de una ventana con shaders**, a ~27–38 FPS según la
+resolución de render. El muro del DRM master (secciones 3 y 6) sigue siendo real
+—no se puede arrancar un 2.º servidor X acelerado— pero resulta **irrelevante**:
+la pantalla virtual por software basta. Las secciones siguientes se conservan
+como registro; donde citen "8 FPS" o "50× / inviable para shaders", aplíquese
+esta corrección.
+
+---
+
 ## 1. Objetivo y restricción
 
 La arquitectura híbrida necesita: el juego renderiza en la dGPU (rápido) en una
@@ -29,7 +57,7 @@ segundo servidor de pantalla.
 | Vía | Oculto | Rápido (shaders) | Resultado / causa |
 |---|---|---|---|
 | **Single-window** (juego en `:1`, tapado por overlay) | ⚠️ ventana existe, invisible | ✅ 33 FPS | Funciona. El juego renderiza nativo en la sesión; el overlay lo cubre. |
-| **Xvfb + PRIME** | ✅ | ❌ 50× lento | El "display" es software (CPU/llvmpipe). Trasvase GPU→CPU + sincronización por frame. Mortal con muchas pasadas (shaders). |
+| **Xvfb + PRIME** | ✅ | ⚠️ ~15 % (limpio) — ver corrección | Display software (CPU/llvmpipe), coste ~constante ~7 ms/frame. En limpio: Minecraft+Photon **~27 FPS** (jugable). El "8 FPS / 50×" fue contaminación de procesos de fondo. |
 | **VirtualGL + Xvfb** | ✅ | ❌ (incompatible) | Crashea con Minecraft moderno (1.21, motor GL nuevo). 1.12.2 funciona pero no soporta shaders modernos (Iris/Photon necesitan ≥1.16). |
 | **gamescope (con ventana)** | ❌ ventana visible | ✅ nativo | Captura OK (glxgears 144 FPS dentro de gamescope). Pero deja ventana visible (mismo caso que single-window). |
 | **gamescope --headless** | ✅ | — | 0 FPS: sin salida no hay vblank, el juego no presenta → no se captura. Backend headless además crashea en esta NVIDIA. |
@@ -80,20 +108,30 @@ la lentitud es el par **PRIME + Xvfb (software)**.
 | Configuración | FPS de render |
 |---|---|
 | Single-window (`:1`, NVIDIA nativo) | ~33 |
-| Pantalla virtual (Xvfb + PRIME) | ~8 |
+| Pantalla virtual (Xvfb + PRIME) — **medida contaminada** | ~8 |
+| Pantalla virtual (Xvfb + PRIME) — **limpia** | **~27** |
+
+> La fila de ~8 FPS quedó contaminada por procesos de estrés/consumo de los
+> experimentos en segundo plano. En limpio, misma escena, la pantalla virtual da
+> ~27 FPS (solo ~15 % bajo el single-window). Ver corrección al inicio.
 
 A 1080p nativo con Photon: **9,5 FPS** (GPU 97%, saturada).
 Híbrida (render 854×480 + IA iGPU → 1080p): **29 FPS** → **3,1×** la nativa.
 
 ---
 
-## 5. Por qué Xvfb se hunde con shaders pero no sin ellos
+## 5. El sobrecoste de Xvfb: un coste ~constante por frame
 
-El sobrecoste de Xvfb es **por pasada de render**. Sin shaders, Minecraft hace
-pocas pasadas → tolerable, jugable en una ventana. Photon hace **decenas de
-pasadas** (sombras, GI, reflejos), y cada una sufre la sincronización
-NVIDIA↔Xvfb → se acumula → 8 FPS. No es "todo o nada": existe un umbral de
-calidad de shaders por debajo del cual la pantalla virtual sigue siendo jugable.
+El sobrecoste de Xvfb es la **presentación por software** de cada frame: un coste
+aproximadamente **constante** (~7 ms/frame), no un factor multiplicativo. Su
+impacto relativo depende de cuánto tarde el render:
+- Render trivial (glmark2, ~0,15 ms/frame): +7 ms domina → parece 50×.
+- Render pesado (Minecraft+Photon, ~30 ms/frame): +7 ms es solo ~15 % → jugable.
+
+Por eso los shaders **no** hunden la pantalla virtual: cuanto más pesado es el
+render, menos pesa en proporción el sobrecoste fijo de Xvfb. Con Photon en limpio
+se miden ~27 FPS (854×480), no 8. La cifra de 8 FPS provino de saturación de CPU
+por procesos de fondo, no del Xvfb.
 
 ---
 
@@ -102,8 +140,10 @@ calidad de shaders por debajo del cual la pantalla virtual sigue siendo jugable.
 **En un escritorio de un solo asiento, no es posible una segunda pantalla oculta
 acelerada por hardware mientras la sesión gráfica está activa**, porque el
 compositor retiene el DRM master de todas las GPUs. La única pantalla oculta
-disponible es por software (Xvfb), 50× más lenta y solo viable para contenido
-ligero.
+disponible es por software (Xvfb); su sobrecoste es un coste **fijo por frame**
+(~7 ms) que, en renders pesados como shaders, supone solo ~15 % → **jugable**
+(~27 FPS con Photon, ~38 rebajando el render). No es, por tanto, un impedimento
+para el demo de una ventana.
 
 Para "oculto + rápido + separado" harían falta cambios inviables para una demo:
 apagar la sesión gráfica (arranque headless/servidor), una GPU adicional dedicada
@@ -115,15 +155,17 @@ al escritorio, o reconfigurar PRIME y reiniciar.
 - **Una sola ventana visible**: el overlay fullscreen cubre la ventana del juego
   → el usuario solo ve la salida IA (se cumple la intención del enunciado: no
   mostrar el render crudo).
-- **Pantalla oculta de verdad (Xvfb)**: válida para contenido ligero/moderado
-  (jugable en una ventana), pero no para shaders extremos.
+- **Pantalla oculta de verdad (Xvfb)**: viable para el demo de una ventana con
+  shaders (~27 FPS a 854×480, ~38 a 480×270). El sobrecoste fijo de Xvfb es
+  asumible en renders pesados. (El "8 FPS / inviable" fue contaminación de fondo.)
 
 ### Valor para la memoria
 Este estudio es un **análisis de viabilidad de sistemas** con datos: documenta
 por qué la pantalla virtual rápida y oculta no es alcanzable en este hardware
-(DRM master compartido), cuantifica el sobrecoste del render por software
-(50×), y aísla que la captura propia es eficiente (−7%). Justifica con rigor la
-decisión de arquitectura final.
+(DRM master compartido), cuantifica el sobrecoste del render por software (coste
+fijo ~7 ms/frame: 50× en renders triviales, solo ~15 % en shaders pesados), y
+aísla que la captura propia es eficiente (−7%). Justifica con rigor la decisión
+de arquitectura final.
 
 ---
 

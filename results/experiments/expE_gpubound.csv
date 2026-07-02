@@ -1,0 +1,10 @@
+scale,input_res,config,fps_final,gpu_max
+2,1920x1080,nativa,43.1,80
+2,960x540,dedicada,28.75,95
+2,960x540,hibrida,25.37,80
+3,1920x1080,nativa,42.9,80
+3,640x360,dedicada,42.86,94
+3,640x360,hibrida,39.72,77
+4,1920x1080,nativa,40.3,79
+4,480x270,dedicada,39.10,93
+4,480x270,hibrida,27.99,74
