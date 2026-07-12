@@ -1,148 +1,122 @@
-# Technical Interpretation and Recommendations
+# Interpretación técnica y recomendaciones
 
-## Why dGPU_CUDA Dominates
+## Por qué domina dGPU_CUDA
 
-**CUDA backend efficiency** stems from three factors:
+La eficiencia del backend CUDA viene de tres factores:
 
-1. **Direct memory access (DMA) pipeline:** CUDA bypasses OpenCL's command queue indirection. Kernels are queued with ~100× lower latency than OpenCL clEnqueueNDRangeKernel.
+1. **Pipeline de acceso directo a memoria (DMA):** CUDA evita la
+   indirección de la cola de comandos de OpenCL. Encolar un kernel tiene
+   una latencia muy inferior a la de `clEnqueueNDRangeKernel`.
 
-2. **Fused operator execution:** RTX 5060 CUDA uses tensor cores (TF32 mode) for matrix operations. OpenCL implementations fall back to scalar ALU operations, losing 4–8× throughput per watt.
+2. **Ejecución de operadores fusionados:** en la RTX 5060, CUDA usa los
+   tensor cores (modo TF32) para las operaciones matriciales. Las
+   implementaciones OpenCL caen a operaciones escalares en la ALU y pierden
+   entre 4 y 8 veces de rendimiento por vatio.
 
-3. **No CPU-GPU synchronization jitter:** CUDA's asynchronous execution model avoids the host-side polling overhead visible in dGPU_OCL. At 224×224, dGPU_CUDA achieves p50 = 1.01 ms vs. dGPU_OCL's p50 > 39 ms at same resolution (39× slower). This gap shrinks at larger resolutions because compute time dominates sync overhead.
+3. **Sin jitter de sincronización CPU-GPU:** el modelo asíncrono de CUDA
+   evita el sondeo desde el host que se aprecia en dGPU_OCL. A 224×224,
+   dGPU_CUDA consigue p50 = 1,01 ms frente a los más de 39 ms de dGPU_OCL a
+   la misma resolución (39 veces más lento). La diferencia se reduce a
+   resoluciones grandes, donde el cómputo domina sobre la sincronización.
 
-**Data:** dGPU_CUDA shows −8.2% latency *improvement* under CPU load and −4.2% under iGPU load (negative = faster), indicating CUDA's independence from host contention. dGPU_OCL degrades +2.5% under CPU load and +23.9% under dGPU load, indicating sensitivity to system-wide contention.
-
----
-
-## Why CPU_OCV Survives
-
-**CPU dispatching has zero GPU overhead.** For tiny inputs (128×72, 256×144), the cost of:
-- Data marshaling to GPU memory
-- Command queue insertion
-- Kernel launch
-
-exceeds the CPU's cost to perform FSRCNN upsampling in-process.
-
-At 128×72, FSRCNN_x2 on CPU_OCV runs at **660 fps** (1.5 ms p50). Even parallelized across 12 cores, moving data to iGPU_OCL cost ~10 ms alone, making CPU the logical choice for sub-256×144 inputs.
-
-**Degradation under load:** CPU_OCV shows +10.6% latency under CPU load (expected—competing cores steal cycles) but −0.4% and +8.0% under iGPU/dGPU loads (nearly immune to GPU contention).
-
-**Why it fails at 480×270:** FSRCNN operations scale O(n²) with input resolution. At 480×270, CPU_OCV needs 60 ms idle, rising to +10.6% under load. Per-frame budget = 33 ms (30 fps threshold). This is the inflection point where GPU becomes necessary.
+**Datos:** dGPU_CUDA incluso *mejora* su latencia bajo carga de CPU (-8,2 %)
+y bajo carga de iGPU (-4,2 %), señal de su independencia de la contención
+del host. dGPU_OCL se degrada un +2,5 % bajo carga de CPU y un +23,9 % bajo
+carga de dGPU: es sensible a la contención global del sistema.
 
 ---
 
-## iGPU Consistency and p90/p50 Ratios
+## Por qué sobrevive CPU_OCV
 
-**p90/p50 ratio interpretation:**
+Despachar en la CPU no tiene sobrecoste de GPU. Para entradas pequeñas
+(128×72, 256×144), el coste de mover los datos a memoria de GPU, insertar
+en la cola de comandos y lanzar el kernel supera lo que le cuesta a la CPU
+hacer el upscaling FSRCNN en el propio proceso.
 
-| Device | Idle Ratio | Load Ratio | Variance Type |
-|--------|-----------|-----------|--------------|
-| CPU_OCV | 1.23 | 1.30 | System noise (OS jitter) |
-| iGPU_OCL | 1.04 | 1.15 | Memory contention, no preemption |
-| dGPU_OCL | 1.06 | 2.35 | GPU queue buildup, high variance |
-| dGPU_CUDA | 1.14 | 1.30 | Tensor core batching |
+A 128×72, FSRCNN_x2 en CPU_OCV corre a **660 fps** (1,5 ms de p50). Solo
+mover los datos a iGPU_OCL cuesta unos 10 ms, así que la CPU es la elección
+lógica para entradas por debajo de 256×144.
 
-**iGPU_OCL at idle: p90/p50 = 1.04** (remarkably tight). This indicates OpenCL command dispatch is deterministic and uncontended at idle. However, absolute latency (10–11 ms even at 128×72) is dominated by fixed cost, not computation.
+**Degradación bajo carga:** CPU_OCV pierde un +10,6 % de latencia bajo carga
+de CPU (esperable, los núcleos compiten) pero apenas nota las cargas de
+iGPU/dGPU (-0,4 % y +8,0 %): es casi inmune a la contención de GPU.
 
-**dGPU_OCL under dGPU load: p90/p50 = 2.35** (worst variability). GPU command queues are reordered and prioritized; concurrent kernels cause memory bank conflicts. This explains the >30% performance floor inconsistency.
-
----
-
-## Resolution Limits per Device
-
-### Practical Limits for Game Integration (30 fps)
-
-| Device | 60 fps limit | 30 fps limit | Reason |
-|--------|-------------|-------------|--------|
-| **CPU_OCV** | 256×144 | 320×180 | Single-threaded FSRCNN, O(n²) scaling |
-| **iGPU_OCL** | 128×72 | 128×72 (fails at 256) | Fixed 10 ms dispatch + 3 ms compute |
-| **dGPU_OCL** | 128×72 | 256×144 | 25 ms launch latency + 3 ms compute |
-| **CPU_OV** | 224×224* | 224×224* | ONNX requires fixed 224×224 (hardcoded reshape) |
-| **iGPU_OV** | 224×224* | 224×224* | Same ONNX constraint |
-| **dGPU_CUDA** | 224×224* | 224×224* | Same ONNX constraint |
-
-*ONNX models (RealESRGAN, super-resolution-10) do not support variable input shapes. Input is internally reshaped to 224×224 before inference. FSRCNN .pb models support arbitrary resolutions.
-
-### Per-Resolution Analysis
-
-**128×72 (minimal):** All devices viable at ≥60 fps (CPU_OCV: 660 fps, dGPU_CUDA: ~700 fps est.)
-
-**320×180 (720p upscale to 1280×720):** CPU_OCV marginal (55.9 fps), GPU required for stable real-time.
-
-**480×270 (480p upscale to 1920×1080):** CPU_OCV fails (16.6 fps). dGPU_OCL: 10.97 fps (fails 30 fps). Only dGPU_CUDA viable (not tested at this res, but extrapolation: ~500 fps).
-
-**1280×720 (4K upscale input):** Only dGPU_CUDA viable in principle. All CPU and OpenCL variants fall below 2 fps.
+**Por qué falla a 480×270:** el coste de FSRCNN crece de forma cuadrática
+con la resolución de entrada. A 480×270 la CPU necesita 60 ms en reposo,
+frente a un presupuesto de 33 ms por frame para 30 fps. Ese es el punto de
+inflexión donde la GPU se vuelve necesaria.
 
 ---
 
-## Recommendations for Thesis
+## Consistencia de la iGPU y ratios p90/p50
 
-### **Use Case 1: Real-Time Game Overlay (30 fps minimum)**
+| Dispositivo | Ratio en reposo | Ratio bajo carga | Tipo de varianza |
+|-------------|-----------------|------------------|------------------|
+| CPU_OCV | 1,23 | 1,30 | Ruido del sistema (jitter del SO) |
+| iGPU_OCL | 1,04 | 1,15 | Contención de memoria, sin desalojo |
+| dGPU_OCL | 1,06 | 2,35 | Acumulación en la cola de la GPU, varianza alta |
+| dGPU_CUDA | 1,14 | 1,30 | Loteado en tensor cores |
 
-**Best device:** dGPU_CUDA at 320×180 input (upscales UI to 1280×720 display)
-- **Performance:** 894 fps (RealESRGAN, 224×224 ONNX)
-- **Trade-off required:** Resize game overlay to 224×224 before inference, then upscale result to match display. Or use FSRCNN at native 320×180 for 55.9 fps on CPU_OCV (30 fps at max).
+**iGPU_OCL en reposo: p90/p50 = 1,04**, un valor muy ajustado. El despacho
+de comandos OpenCL es determinista sin contención. Eso sí, la latencia
+absoluta (10-11 ms incluso a 128×72) está dominada por el coste fijo, no
+por el cómputo.
 
-**Alternative (low-power laptop):** iGPU_OV at 224×224
-- **Performance:** 335.7 fps
-- **Advantage:** No discrete GPU power draw; consistent across load (±2% degradation)
-- **Limitation:** Fixed 224×224 only; requires UI resize pipeline
-
-**Fall-back (CPU-only environment):** CPU_OV at 224×224
-- **Performance:** 87.9 fps
-- **Advantage:** Portable, no GPU dependency
-- **Limitation:** Needs AVX2 or higher; slower on older CPUs
-
-### **Use Case 2: Offline Batch Processing (batch size = 100 frames)**
-
-**Best device:** dGPU_CUDA
-- **Throughput:** 50 MB/s effective (224×224 RGB frames at 986 fps × 3 bytes/pixel)
-- **Total time for 1920×1080 video:** ~seconds per frame (can process 4K in real-time if using native resolution with .pb models)
-
-**Why not CPU_OCV:** Even with 12 cores, parallelizing FSRCNN yields ~400 fps max at 256×144 (vs. 115 fps serial). Not worth complexity for offline use.
-
-### **Use Case 3: Energy-Constrained Mobile/Edge (battery aware)**
-
-**Best device:** iGPU_OV at 224×224
-- **Power draw:** ~5–8 W (estimated, iGPU on Core Ultra 7 265K)
-- **Performance:** 335.7 fps (9.8× overhead capacity)
-- **Load stability:** ±2.3% degradation (best in class)
-
-**Alternative:** CPU_OV at 224×224
-- **Power draw:** ~8–12 W (single thread + L3 cache)
-- **Performance:** 87.9 fps (2.6× overhead capacity)
-- **Advantage:** Predictable, no GPU load contention
-
-### **Use Case 4: Server Deployment (throughput-critical)**
-
-**Recommendation:** dGPU_CUDA with variable resolution pipeline
-- **Small UI (128×72):** CPU_OCV (660 fps, 1.5 ms latency, cache-efficient)
-- **Medium UI (320×180):** CPU_OCV (55.9 fps) or dGPU_OCL (25.6 fps)—CPU faster below dispatch threshold
-- **Large UI (480×270+):** dGPU_CUDA (pipeline resizes to 224×224 ONNX)
-
-**Batching strategy:** Queue 32 requests, dispatch in parallel to dGPU_CUDA; interleave small requests on CPU_OCV to hide queue latency.
-
-### **Use Case 5: Thesis Validation (testing framework efficiency)**
-
-**Argument structure:**
-1. **dGPU_CUDA dominates** because CUDA eliminates OpenCL's command dispatch overhead (100× improvement in launch latency).
-2. **CPU_OCV persists** because GPU dispatch cost exceeds computation cost for sub-256×144 inputs (dispatching is not free).
-3. **iGPU consistency** (p90/p50 ≈ 1.04) proves OpenCL is *stable* but *slow*—the overhead is fixed, not variable.
-4. **dGPU_OCL variance** (p90/p50 ≈ 2.35 under load) shows GPU scheduling is a critical bottleneck in OpenCL.
-5. **Framework choice matters:** ONNX + CUDA achieves 986 fps at 224×224; same model in OpenCV .pb format is not available, proving algorithmic efficiency is framework-specific.
-
-**Quantitative thesis statement:**
-> "CUDA backend eliminates 95% of GPU-dispatch overhead compared to OpenCL, enabling real-time super-resolution inference at 480×270 input resolution. CPU-based execution remains viable for inputs <256×144 due to zero-overhead dispatch, outperforming GPU-based methods by 2–4× in this regime."
+**dGPU_OCL bajo carga de dGPU: p90/p50 = 2,35**, la peor variabilidad. Las
+colas de comandos de la GPU se reordenan y priorizan, y los kernels
+concurrentes provocan conflictos de bancos de memoria.
 
 ---
 
-## Summary Table: Device Selection by Requirement
+## Límites de resolución por dispositivo
 
-| Requirement | Device | Resolution | FPS | Rationale |
-|-------------|--------|------------|-----|-----------|
-| Max throughput | dGPU_CUDA | 224×224 | 986 | Tensor cores + CUDA direct execution |
-| Real-time game UI | dGPU_CUDA | 320×180 | ~500 est. | Best 30 fps guarantee |
-| Energy efficient | iGPU_OV | 224×224 | 336 | Low power draw + consistent |
-| CPU-only fallback | CPU_OV | 224×224 | 88 | Portable, no GPU required |
-| Tiny overlays | CPU_OCV | 128×72 | 660 | Zero dispatch cost, low latency |
-| Server batch | dGPU_CUDA | Variable | — | Throughput-optimal with queuing |
+### Límites prácticos para la integración con un juego (30 fps)
+
+| Dispositivo | Límite a 60 fps | Límite a 30 fps | Motivo |
+|-------------|-----------------|-----------------|--------|
+| **CPU_OCV** | 256×144 | 320×180 | Escalado cuadrático de FSRCNN |
+| **iGPU_OCL** | 128×72 | 128×72 (falla a 256) | 10 ms fijos de despacho + 3 ms de cómputo |
+| **dGPU_OCL** | 128×72 | 256×144 | 25 ms de latencia de lanzamiento + 3 ms de cómputo |
+| **CPU_OV** | 224×224* | 224×224* | ONNX requiere 224×224 fijo |
+| **iGPU_OV** | 224×224* | 224×224* | Misma restricción de ONNX |
+| **dGPU_CUDA** | 224×224* | 224×224* | Misma restricción de ONNX |
+
+*Los modelos ONNX (RealESRGAN, super-resolution-10) no admiten entradas de
+tamaño variable: la entrada se redimensiona internamente a 224×224 antes de
+la inferencia. Los FSRCNN en .pb admiten resoluciones arbitrarias.
+
+### Análisis por resolución
+
+- **128×72 (mínima):** todos los dispositivos viables a ≥60 fps
+  (CPU_OCV: 660 fps).
+- **320×180 (upscale a 1280×720):** CPU_OCV marginal (55,9 fps); hace falta
+  GPU para tiempo real estable.
+- **480×270 (upscale a 1920×1080):** CPU_OCV falla (16,6 fps) y dGPU_OCL
+  también (11 fps). Solo dGPU_CUDA sería viable a esta resolución.
+- **1280×720 (entrada para 4K):** solo dGPU_CUDA en principio; todas las
+  variantes de CPU y OpenCL caen por debajo de 2 fps.
+
+---
+
+## Recomendaciones para el trabajo
+
+Las conclusiones que esta fase aporta al diseño de la arquitectura:
+
+1. **dGPU_CUDA domina** porque CUDA elimina el sobrecoste de despacho de
+   OpenCL (dos órdenes de magnitud en la latencia de lanzamiento).
+2. **CPU_OCV sigue teniendo sentido** para entradas pequeñas (<256×144),
+   donde el coste de despachar a la GPU supera al del cómputo.
+3. **La consistencia de la iGPU** (p90/p50 ≈ 1,04) demuestra que OpenCL es
+   estable aunque lento: su sobrecoste es fijo, no variable.
+4. **La varianza de dGPU_OCL** (p90/p50 ≈ 2,35 bajo carga) muestra que la
+   planificación de la GPU es un cuello de botella crítico en OpenCL.
+5. **El framework importa:** el mismo modelo puede ir sobrado en un backend
+   e inviable en otro; la elección de OpenVINO para la iGPU en las fases
+   siguientes sale de aquí.
+
+| Requisito | Dispositivo | Resolución | FPS | Motivo |
+|-----------|-------------|------------|-----|--------|
+| Máximo rendimiento | dGPU_CUDA | 224×224 | 986 | Tensor cores + ejecución directa CUDA |
+| Eficiencia energética | iGPU_OV | 224×224 | 336 | Bajo consumo y consistente |
+| Solo CPU | CPU_OV | 224×224 | 88 | Portable, sin GPU |
+| Entradas diminutas | CPU_OCV | 128×72 | 660 | Despacho sin coste, latencia mínima |

@@ -1,4 +1,4 @@
-# processing/ — Superresolución IA sobre los frames capturados
+# processing/: superresolución IA sobre los frames capturados
 
 Lectores de `/dev/shm/framebuffer_shared` que aplican superresolución en la
 **iGPU Intel** (la dGPU NVIDIA queda libre para el render del juego) y

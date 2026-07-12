@@ -1,4 +1,4 @@
-# benchmarks/viability/ — Estudio de viabilidad (Fase 1)
+# benchmarks/viability/: estudio de viabilidad (Fase 1)
 
 Matriz sistemática de benchmarks que mide la viabilidad de cada modelo de
 superresolución en cada dispositivo/backend. Es el estudio que se presentó al

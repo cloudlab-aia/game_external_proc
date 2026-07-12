@@ -1,4 +1,4 @@
-# models/ — Modelos de superresolución
+# models/: modelos de superresolución
 
 | Archivo | Formato | Usado por |
 |---|---|---|
@@ -13,9 +13,9 @@
 
 ## Utilidades
 
-- `download_model.py` — descarga de modelos.
-- `convert_realesrgan.py` — conversión .pth → ONNX.
-- `setup_model.py` — preparación/verificación de modelos.
+- `download_model.py`, descarga de modelos.
+- `convert_realesrgan.py`, conversión .pth → ONNX.
+- `setup_model.py`, preparación/verificación de modelos.
 
 Las rutas a estos modelos están definidas como constantes al inicio de cada
 script de `processing/` y `benchmarks/`.

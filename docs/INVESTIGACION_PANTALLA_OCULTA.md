@@ -11,16 +11,16 @@ Hardware: NVIDIA RTX 5060 (dGPU, PCI:1:0:0) + Intel Arrow Lake iGPU
 
 ---
 
-## ⚠️ CORRECCIÓN IMPORTANTE (2026-06-30)
+## CORRECCIÓN IMPORTANTE (2026-06-30)
 
-La conclusión original de este documento —que la pantalla virtual (Xvfb) es
-"50× más lenta" e "inviable para shaders" (8 FPS)— **era errónea por
+La conclusión original de este documento,que la pantalla virtual (Xvfb) es
+"50× más lenta" e "inviable para shaders" (8 FPS), **era errónea por
 contaminación de la medida**. El 8 FPS se midió con procesos de estrés/consumo
 de los experimentos aún corriendo en segundo plano, saturando la CPU.
 
 **Medido en limpio (misma escena, sin procesos de fondo):**
 - Pantalla virtual (Xvfb + PRIME) + Minecraft + Photon @854×480: **~27 FPS**,
-  solo **~15 %** por debajo del single-window (~32 FPS). Jugable.
+ solo **~15 %** por debajo del single-window (~32 FPS). Jugable.
 - Rebajando el render: 480×270 → **~38 FPS**; 640×360 → **~35 FPS**.
 
 **Por qué glmark2 marca 50× pero Minecraft solo 15 %:** el sobrecoste de Xvfb es
@@ -32,7 +32,7 @@ frame, no con un factor multiplicativo.
 **Implicación:** la pantalla virtual oculta (Xvfb + PRIME + captura) **SÍ es
 viable para el demo de una ventana con shaders**, a ~27–38 FPS según la
 resolución de render. El muro del DRM master (secciones 3 y 6) sigue siendo real
-—no se puede arrancar un 2.º servidor X acelerado— pero resulta **irrelevante**:
+, no se puede arrancar un 2.º servidor X acelerado, pero resulta **irrelevante**:
 la pantalla virtual por software basta. Las secciones siguientes se conservan
 como registro; donde citen "8 FPS" o "50× / inviable para shaders", aplíquese
 esta corrección.
@@ -56,13 +56,13 @@ segundo servidor de pantalla.
 
 | Vía | Oculto | Rápido (shaders) | Resultado / causa |
 |---|---|---|---|
-| **Single-window** (juego en `:1`, tapado por overlay) | ⚠️ ventana existe, invisible | ✅ 33 FPS | Funciona. El juego renderiza nativo en la sesión; el overlay lo cubre. |
-| **Xvfb + PRIME** | ✅ | ⚠️ ~15 % (limpio) — ver corrección | Display software (CPU/llvmpipe), coste ~constante ~7 ms/frame. En limpio: Minecraft+Photon **~27 FPS** (jugable). El "8 FPS / 50×" fue contaminación de procesos de fondo. |
-| **VirtualGL + Xvfb** | ✅ | ❌ (incompatible) | Crashea con Minecraft moderno (1.21, motor GL nuevo). 1.12.2 funciona pero no soporta shaders modernos (Iris/Photon necesitan ≥1.16). |
-| **gamescope (con ventana)** | ❌ ventana visible | ✅ nativo | Captura OK (glxgears 144 FPS dentro de gamescope). Pero deja ventana visible (mismo caso que single-window). |
-| **gamescope --headless** | ✅ | — | 0 FPS: sin salida no hay vblank, el juego no presenta → no se captura. Backend headless además crashea en esta NVIDIA. |
-| **X headless en NVIDIA** | ✅ | ✅ | ❌ `drmSetMaster failed: Device or resource busy`. La NVIDIA la tiene la sesión. |
-| **X headless en Intel** | ✅ | ✅ | GLAMOR (hardware) **inicializa bien**, pero ❌ también `drmSetMaster failed: busy`. La Intel (GPU de arranque) también la retiene la sesión. |
+| **Single-window** (juego en `:1`, tapado por overlay) | ventana existe, invisible | 33 FPS | Funciona. El juego renderiza nativo en la sesión; el overlay lo cubre. |
+| **Xvfb + PRIME** | | ~15 % (limpio) - ver corrección | Display software (CPU/llvmpipe), coste ~constante ~7 ms/frame. En limpio: Minecraft+Photon **~27 FPS** (jugable). El "8 FPS / 50×" fue contaminación de procesos de fondo. |
+| **VirtualGL + Xvfb** | | (incompatible) | Crashea con Minecraft moderno (1.21, motor GL nuevo). 1.12.2 funciona pero no soporta shaders modernos (Iris/Photon necesitan ≥1.16). |
+| **gamescope (con ventana)** | ventana visible | nativo | Captura OK (glxgears 144 FPS dentro de gamescope). Pero deja ventana visible (mismo caso que single-window). |
+| **gamescope --headless** | | - | 0 FPS: sin salida no hay vblank, el juego no presenta → no se captura. Backend headless además crashea en esta NVIDIA. |
+| **X headless en NVIDIA** | | | `drmSetMaster failed: Device or resource busy`. La NVIDIA la tiene la sesión. |
+| **X headless en Intel** | | | GLAMOR (hardware) **inicializa bien**, pero también `drmSetMaster failed: busy`. La Intel (GPU de arranque) también la retiene la sesión. |
 
 ---
 
@@ -80,7 +80,7 @@ mientras el escritorio está abierto**, en ninguna de las dos GPUs.
 Comprobado en logs:
 - NVIDIA: `NVIDIA(GPU-0): Failed to acquire modesetting permission`.
 - Intel: `modeset(0): drmSetMaster failed: Device or resource busy` (tras
-  inicializar GLAMOR correctamente y con un conector forzado a "connected").
+ inicializar GLAMOR correctamente y con un conector forzado a "connected").
 
 Detalle adicional: al arrancar el X sobre la Intel, Xorg intentaba auto-enganchar
 la NVIDIA como GPU secundaria (PRIME) y fallaba el `drmSetMaster` de la NVIDIA;
@@ -108,8 +108,8 @@ la lentitud es el par **PRIME + Xvfb (software)**.
 | Configuración | FPS de render |
 |---|---|
 | Single-window (`:1`, NVIDIA nativo) | ~33 |
-| Pantalla virtual (Xvfb + PRIME) — **medida contaminada** | ~8 |
-| Pantalla virtual (Xvfb + PRIME) — **limpia** | **~27** |
+| Pantalla virtual (Xvfb + PRIME) - **medida contaminada** | ~8 |
+| Pantalla virtual (Xvfb + PRIME) - **limpia** | **~27** |
 
 > La fila de ~8 FPS quedó contaminada por procesos de estrés/consumo de los
 > experimentos en segundo plano. En limpio, misma escena, la pantalla virtual da
@@ -151,13 +151,13 @@ al escritorio, o reconfigurar PRIME y reiniciar.
 
 ### Implicación para la arquitectura
 - **Rendimiento (beneficio 3×)**: se demuestra con captura directa en la sesión
-  (single-window), render nativo. Validado.
+ (single-window), render nativo. Validado.
 - **Una sola ventana visible**: el overlay fullscreen cubre la ventana del juego
-  → el usuario solo ve la salida IA (se cumple la intención del enunciado: no
-  mostrar el render crudo).
+ → el usuario solo ve la salida IA (se cumple la intención del enunciado: no
+ mostrar el render crudo).
 - **Pantalla oculta de verdad (Xvfb)**: viable para el demo de una ventana con
-  shaders (~27 FPS a 854×480, ~38 a 480×270). El sobrecoste fijo de Xvfb es
-  asumible en renders pesados. (El "8 FPS / inviable" fue contaminación de fondo.)
+ shaders (~27 FPS a 854×480, ~38 a 480×270). El sobrecoste fijo de Xvfb es
+ asumible en renders pesados. (El "8 FPS / inviable" fue contaminación de fondo.)
 
 ### Valor para la memoria
 Este estudio es un **análisis de viabilidad de sistemas** con datos: documenta
@@ -174,6 +174,6 @@ de arquitectura final.
 - Diagnóstico glmark2 3 caminos: `/tmp/diag_glmark.py`.
 - Config X headless (NVIDIA): `/tmp/headless_nvidia.conf` (falló: modesetting busy).
 - Config X headless (Intel): `/tmp/headless_intel.conf` (falló: drmSetMaster busy
-  pese a GLAMOR + conector forzado + AutoBindGPU=false).
+ pese a GLAMOR + conector forzado + AutoBindGPU=false).
 - Forzar/revertir conector Intel: `echo on|detect | sudo tee /sys/class/drm/card1-HDMI-A-1/status`.
 - Errores clave en `/var/log/Xorg.5.log` (NVIDIA) y `/var/log/Xorg.6.log` (Intel).

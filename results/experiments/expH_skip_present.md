@@ -1,4 +1,4 @@
-# Exp H — "Capturar sin presentar": pantalla virtual GPU-bound
+# Exp H: capturar sin presentar (pantalla virtual GPU-bound)
 
 Hipótesis: el cuello de la pantalla virtual (Xvfb) es la **presentación software**
 (la copia dGPU→Xvfb por CPU en cada `glXSwapBuffers`). Si el wrapper captura el
@@ -25,7 +25,7 @@ Al saltarse la copia software, el render pasa a GPU-bound. **Hipótesis validada
 
 Es la vía que podría hacer la arquitectura híbrida real (pantalla virtual oculta)
 también **rápida** (GPU-bound), y por tanto donde la ventaja híbrida (IA en iGPU,
-dGPU libre) sí se materializaría — a diferencia del Xvfb normal (copy-bound, donde
+dGPU libre) sí se materializaría, a diferencia del Xvfb normal (copy-bound, donde
 no gana, ver Exp F/G).
 
 ## Confirmado con Minecraft + Photon (2026-07-02)
@@ -38,7 +38,7 @@ X11 + wrapper + skip-present; el filtro `FRAME_CAPTURE_EXE=java` hace que el
 wrapper solo capture el juego (no la UI del launcher). Se navega el launcher/menús
 por screenshots (`import -display :2 -window root` / buzón shm) + xdotool.
 
-Resultado — Minecraft + Photon en el mundo "Shaders", pantalla oculta `:2`:
+Resultado, Minecraft + Photon en el mundo "Shaders", pantalla oculta `:2`:
 
 | 1080p Photon | FPS render | GPU |
 |---|---|---|
@@ -49,7 +49,7 @@ Resultado — Minecraft + Photon en el mundo "Shaders", pantalla oculta `:2`:
 **El skip-present hace la pantalla virtual oculta GPU-bound (85 % GPU), igualando
 al hardware, 3,4× el Xvfb normal.** Resuelve el conflicto oculto+rápido+capturable
 que se creía imposible (ver docs/INVESTIGACION_PANTALLA_OCULTA): no hace falta 2ª
-GPU ni arranque headless — basta con capturar de VRAM y NO presentar.
+GPU ni arranque headless, basta con capturar de VRAM y NO presentar.
 
 Implicación: la arquitectura híbrida REAL (pantalla virtual oculta) es viable y
 rápida. Pendiente: repetir híbrida vs dedicada en este camino (debería ganar la

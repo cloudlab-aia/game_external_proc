@@ -1,4 +1,4 @@
-# Exp F — La ventaja híbrida: preservar el FPS del juego
+# Exp F: la ventaja híbrida en la fluidez del juego
 
 Pregunta: cuando la dGPU es el cuello (render por hardware, GPU-bound), ¿la
 arquitectura híbrida (IA en la iGPU) mantiene el juego más fluido que hacer la IA

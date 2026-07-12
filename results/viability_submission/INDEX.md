@@ -1,76 +1,57 @@
-# Thesis Submission Package
+# Paquete de resultados del estudio de viabilidad
 
-Completo benchmark de viabilidad para upscaling AI en tiempo real. Contenido:
+Benchmark completo de viabilidad para upscaling con IA en tiempo real.
+Contenido del paquete:
 
-## 📊 Visualizations (`plots/`)
-**Mostrar primero al tutor:**
+## Gráficas (`plots/`)
 
-1. **device_ranking_idle.png** — Ranking FPS por dispositivo (idle)
-   - Muestra jerarquía: dGPU_OCL > iGPU > CPU
-   
-2. **latency_vs_resolution.png** — Latencia vs resolución entrada (4 load states)
-   - Muestra escalado de dispositivos y degradación bajo carga
-   
-3. **fps_comparison.png** — FPS por modelo (comparativa agrupada)
-   - Muestra diferencias entre FSRCNN_x2/x3/x4 y OpenVINO model
-   
-4. **interference_heatmap.png** — Impacto de stressers (2D devices × load)
-   - Muestra cuáles dispositivos son inmunes a CPU stress
-   
-5. **model_quality_proxy.png** — Scatter latency vs scale factor
-   - Muestra tradeoff calidad/velocidad
+1. **device_ranking_idle.png**: ranking de FPS por dispositivo (sin carga).
+   Muestra la jerarquía dGPU_OCL > iGPU > CPU.
+2. **latency_vs_resolution.png**: latencia frente a resolución de entrada
+   (4 estados de carga). Muestra el escalado de cada dispositivo y su
+   degradación bajo carga.
+3. **fps_comparison.png**: FPS por modelo (comparativa agrupada). Diferencias
+   entre FSRCNN_x2/x3/x4 y el modelo de OpenVINO.
+4. **interference_heatmap.png**: impacto de los generadores de carga
+   (dispositivos × carga). Muestra qué dispositivos son inmunes al estrés
+   de CPU.
+5. **model_quality_proxy.png**: dispersión latencia frente a factor de
+   escala. Muestra el compromiso calidad/velocidad.
 
-## 🖼️ Representative Comparisons (`comparisons/`)
-**14 imágenes estratégicas:**
+## Comparativas visuales (`comparisons/`)
 
-- **CPU_OCV** (2x): Baseline, con/sin CPU stress → Referencia lenta
-- **CPU_OV** (2x): OpenVINO CPU, muestra mejora respecto a OpenCV
-- **iGPU_OCL** (2x): GPU integrada, 2 resoluciones
-- **iGPU_OV** (2x): GPU integrada + OpenVINO, comparar vs OCL
-- **dGPU_OCL** (6x): 
-  - 3 resoluciones (320×180, 640×360, 1280×720) bajo idle
-  - 2 interference tests (CPU stress + memory) en 640×360
-  - Mejor rendimiento global
+14 imágenes representativas:
 
-Cada PNG muestra: Original | Bicubic | AI upscale (con PSNR + FPS)
+- **CPU_OCV** (2): referencia lenta, con y sin estrés de CPU
+- **CPU_OV** (2): OpenVINO en CPU, mejora respecto a OpenCV
+- **iGPU_OCL** (2): GPU integrada, 2 resoluciones
+- **iGPU_OV** (2): GPU integrada con OpenVINO, para comparar con OpenCL
+- **dGPU_OCL** (6): 3 resoluciones (320×180, 640×360, 1280×720) sin carga,
+  más 2 pruebas de interferencia (estrés de CPU y de memoria) a 640×360.
+  Mejor rendimiento global.
 
-## 📋 Documentation (`docs/`)
+Cada PNG muestra: original | bicúbico | upscaling IA (con PSNR y FPS).
 
-1. **RESULTS_SUMMARY.md**
-   - Combos viables (≥30 fps)
-   - Ranking por dispositivo/modelo
-   - Degradación bajo stressers
-   
-2. **DATA_DICT.md**
-   - Definición columnas CSV
-   - Umbrales viabilidad
-   - Metodología medición
-   
-3. **INTERPRETATION.md**
-   - Por qué cada dispositivo se comporta así
-   - Limitaciones arquitectura (ONNX format, OpenCL vs CUDA, etc.)
-   - Recomendaciones para fase 2
+## Documentación (`docs/`)
 
-## 📊 Raw Data (`data/`)
+1. **RESULTS_SUMMARY.md**: combinaciones viables (≥30 FPS), ranking por
+   dispositivo y modelo, degradación bajo carga.
+2. **DATA_DICT.md**: definición de las columnas del CSV, umbrales de
+   viabilidad y metodología de medición.
+3. **INTERPRETATION.md**: por qué se comporta así cada dispositivo,
+   limitaciones (formato ONNX, OpenCL frente a CUDA, etc.) y
+   recomendaciones para la fase 2.
 
-- **frame_injection_results.csv** (99 rows)
-  - Latencies, FPS, PSNR para cada combo device/model/resolution/interference
-  
-- **summary_by_device.csv**
-  - Agregación por dispositivo
+## Datos crudos (`data/`)
 
-## 🎯 Presentation Strategy
-
-1. **Primera impresión:** Mostrar `device_ranking_idle.png` → "dGPU 986 FPS viable"
-2. **Escalado:** `latency_vs_resolution.png` → comportamiento con resoluciones altas
-3. **Interferencias:** `interference_heatmap.png` → dGPU inmune, CPU OV vulnerable
-4. **Visuals:** Seleccionar 3-4 comparaciones más impactantes (ej: dGPU a 1280×720)
-5. **Profundidad:** Referencia RESULTS_SUMMARY.md + INTERPRETATION.md
+- **frame_injection_results.csv** (99 filas): latencias, FPS y PSNR de cada
+  combinación dispositivo/modelo/resolución/interferencia.
+- **summary_by_device.csv**: agregación por dispositivo.
 
 ---
 
-**Hardware usado:** RTX 5060 (dGPU), Intel iGPU, CPU (Intel Core)  
-**Modelos:** FSRCNN_x2/x3/x4, RealESRGAN, OpenVINO single-image-super-resolution-1032  
-**Resoluciones:** 320×180, 640×360, 1280×720  
-**Stressers:** idle, CPU (stress --cpu 8), memory (2GB alloc)  
-**Total mediciones:** 99 combos exitosos (7.9% failures en OpenVINO reshape)
+**Hardware:** RTX 5060 (dGPU), Intel iGPU, CPU Intel Core
+**Modelos:** FSRCNN_x2/x3/x4, RealESRGAN, single-image-super-resolution-1032 (OpenVINO)
+**Resoluciones:** 320×180, 640×360, 1280×720
+**Cargas:** sin carga, CPU (stress --cpu 8), memoria (reserva de 2 GB)
+**Total de mediciones:** 99 combinaciones válidas (7,9 % de fallos por reshape en OpenVINO)

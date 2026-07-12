@@ -9,7 +9,7 @@ bicúbico → vuelta a la resolución de salida → PSNR/SSIM vs GT.
 Datos completos: `quality_resolution_matrix.csv`. Recortes GT|bicúbico|híbrido en
 `crops/`. Gráficas en `plots/`.
 
-## Resultado principal — salida fija 1080p (comparables al frame nativo)
+## Resultado principal: salida fija 1080p (comparables al frame nativo)
 
 | Entrada | Escala | PSNR híbrido | SSIM | vs bicúbico | Latencia IA (iGPU) |
 |---|---|---|---|---|---|

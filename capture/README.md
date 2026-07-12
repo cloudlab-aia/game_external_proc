@@ -1,4 +1,4 @@
-# capture/ — Interceptor de frames OpenGL
+# capture/: interceptor de frames OpenGL
 
 Biblioteca `LD_PRELOAD` que intercepta `glXSwapBuffers` de cualquier
 aplicación OpenGL y copia cada frame a memoria compartida POSIX
@@ -27,13 +27,13 @@ LD_PRELOAD=$PWD/wrapper_swapbuffers_shm.so glxgears -geometry 1280x720
 El interceptor cubre las tres rutas por las que una app puede llegar a
 `glXSwapBuffers`:
 
-1. Enlace dinámico normal (PLT) — glxgears y apps clásicas.
-2. `dlsym()` sobre libGL cargada con `dlopen()` — GLFW/LWJGL3 (Minecraft ≥ 1.13).
-3. `glXGetProcAddress[ARB]()` — resolución de extensiones.
+1. Enlace dinámico normal (PLT), glxgears y apps clásicas.
+2. `dlsym()` sobre libGL cargada con `dlopen()`, GLFW/LWJGL3 (Minecraft ≥ 1.13).
+3. `glXGetProcAddress[ARB]()`, resolución de extensiones.
 
 Variables de entorno:
 
-- `FRAME_CAPTURE_EXE=<subcadena>` — limita la captura al proceso cuyo nombre
+- `FRAME_CAPTURE_EXE=<subcadena>`, limita la captura al proceso cuyo nombre
   contenga la subcadena (p. ej. `java` = solo la JVM del juego). Necesario al
   inyectar a través de un launcher: si dos procesos escriben a la vez en la
   shm con tamaños distintos, el `ftruncate` de uno invalida el mapeo del otro

@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-06-11
 **Hardware:** NVIDIA GeForce RTX 5060 (render), display X11 `:1` con direct rendering
-**Software:** Ubuntu (kernel 6.17), glxgears (mesa-utils), VirtualGL compilado desde `virtualgl/` con hook de captura propio
+**Software:** Ubuntu (kernel 6.17), glxgears (mesa-utils), VirtualGL compilado con el hook de captura propio (parche completo en `virtualgl_hybrid_capture.patch`)
 
 ## 1. Pregunta
 
@@ -10,7 +10,7 @@
 dGPU→iGPU: un interposer `LD_PRELOAD` mínimo propio
 (`iframe_capture/wrapper_swapbuffers_shm.c`, ~150 líneas) o VirtualGL
 modificado (fork de ~600 ficheros con hook en
-`virtualgl/server/faker-glx.cpp`)?
+`server/faker-glx.cpp` de VirtualGL, ver el parche adjunto)?
 
 Nota conceptual: ambos usan el **mismo mecanismo** de interposición
 (`LD_PRELOAD` sobre `glXSwapBuffers`). `vglrun` precarga `libvglfaker.so`
@@ -104,7 +104,7 @@ Se adopta el **interposer propio** como mecanismo de captura del pipeline:
 
 VirtualGL queda documentado como **alternativa evaluada experimentalmente**
 (no descartada a priori), con su prototipo funcional en
-`virtualgl/server/faker-glx.cpp` como evidencia de la exploración.
+`virtualgl_hybrid_capture.patch` como evidencia de la exploración.
 
 ## 7. Reproducción
 

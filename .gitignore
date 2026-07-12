@@ -45,3 +45,10 @@ benchmarks/viability/logs/
 
 # Binario del interceptor de lanzamiento (regenerar con gcc)
 capture/game_launch_interposer.so
+
+# Documentos personales (enunciados, revisiones del tutor, guias) - nunca al repo
+/*.docx
+/*.pdf
+/*.odt
+/*.pptx
+docs/notas*.md

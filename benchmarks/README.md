@@ -1,4 +1,4 @@
-# benchmarks/ — Medición de rendimiento (datos REALES)
+# benchmarks/: medición de rendimiento (datos REALES)
 
 Scripts de experimentación que producen las medidas usadas en la memoria.
 Todo lo de esta carpeta **mide**, no simula. (Los scripts de simulación

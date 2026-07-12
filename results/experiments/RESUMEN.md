@@ -1,9 +1,9 @@
-# Experimentos — Arquitectura híbrida vs dedicada (FSRCNN)
+# Experimentos: arquitectura híbrida vs dedicada (FSRCNN)
 
 Inferencia de FSRCNN (Y, 480×270→1080p salvo barrido) en las tres unidades:
 dGPU (NVIDIA RTX 5060, ONNX Runtime CUDA), iGPU (Intel, OpenVINO), CPU (OpenVINO).
 
-## Exp A — Inferencia sin carga (barrido)
+## Exp A: inferencia sin carga (barrido)
 A reposo, la dGPU es la más rápida en TODA combinación de resolución y escala;
 la iGPU es la más lenta. (`expA_inference_sweep.csv`, `plots/sweep_x*.png`)
 
@@ -11,7 +11,7 @@ la iGPU es la más lenta. (`expA_inference_sweep.csv`, `plots/sweep_x*.png`)
 |---|---|---|---|
 | FPS inferencia | 243 | 161 | 110 |
 
-## Exp B — Cruce al saturar la dGPU (figura estrella)
+## Exp B: cruce al saturar la dGPU (figura estrella)
 Conforme se carga la dGPU, su FPS de inferencia se desploma; la iGPU se mantiene
 plana. **Al saturar la dGPU, la iGPU la supera.** (`expB_gradient.csv`,
 `plots/crossover.png`)

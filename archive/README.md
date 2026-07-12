@@ -3,17 +3,15 @@
 Cosas que formaron parte de la exploración pero que no son la versión final
 del TFG. Se conservan como evidencia del proceso, no como resultados.
 
-## simulation_analysis/ ⚠️
+## simulation_analysis/ 
 
 Scripts que **SIMULAN** rendimiento (generan números a partir de modelos
 analíticos, no de mediciones):
 
 - `realesrgan_hybrid_realistic_analysis.py` — "simula de forma REALISTA" el
-  rendimiento Real-ESRGAN en la arquitectura híbrida.
+ rendimiento Real-ESRGAN en la arquitectura híbrida.
 - `comprehensive_glxgears_realesrgan_analysis.py` — análisis exhaustivo con
-  componentes simulados.
-- `docs/` — los seis documentos `DOCUMENTACION_*` / `MANUAL_*` que describen
-  ese sistema de simulación.
+ componentes simulados.
 
 **Nunca presentar la salida de estos scripts como medidas reales en la
 memoria.** Para medidas reales: `../benchmarks/` y `../results/`.

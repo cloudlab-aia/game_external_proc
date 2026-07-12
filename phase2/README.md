@@ -1,4 +1,4 @@
-# phase2/ — Comparativa de arquitecturas (nativo vs híbrido)
+# phase2/: comparativa de arquitecturas (nativo vs híbrido)
 
 Fase 2 del TFG (acordada con el tutor): comparar, frame a frame, la imagen
 producida por el pipeline híbrido (render bajo en dGPU + upscaling IA en
