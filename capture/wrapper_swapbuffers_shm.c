@@ -225,8 +225,34 @@ void glXSwapBuffers(Display* dpy, GLXDrawable drawable) {
         goto call_real;
     }
 
+    // Leer SIEMPRE del framebuffer de la ventana: motores como Photon/Iris
+    // pueden dejar un FBO intermedio enlazado en el momento del swap, y
+    // glReadPixels leería ese buffer (vacío) en lugar del frame real.
+    #ifndef GL_READ_FRAMEBUFFER
+    #define GL_READ_FRAMEBUFFER 0x8CA8
+    #endif
+    #ifndef GL_READ_FRAMEBUFFER_BINDING
+    #define GL_READ_FRAMEBUFFER_BINDING 0x8CAA
+    #endif
+    static void (*p_glBindFramebuffer)(GLenum, GLuint) = NULL;
+    if (!p_glBindFramebuffer) {
+        if (!init_real_dlsym()) goto call_real;
+        GLXFuncPtr (*gpa)(const GLubyte *) =
+            real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
+        if (gpa)
+            p_glBindFramebuffer = (void (*)(GLenum, GLuint))
+                gpa((const GLubyte *)"glBindFramebuffer");
+    }
+    GLint prev_read_fbo = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev_read_fbo);
+    if (prev_read_fbo != 0 && p_glBindFramebuffer)
+        p_glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    if (prev_read_fbo != 0 && p_glBindFramebuffer)
+        p_glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)prev_read_fbo);
 
     // Verificación rápida de frame negro (solo primeros 1024 pixels)
     uint32_t quick_sum = 0;

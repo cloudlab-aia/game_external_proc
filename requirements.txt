@@ -7,8 +7,11 @@ openvino==2025.2.0
 # opencv-contrib-python incluye dnn_superres (FSRCNN); reemplaza a opencv-python
 opencv-contrib-python
 numpy==2.2.6
+# Para los experimentos con la IA en la dGPU instalar onnxruntime-gpu en su lugar
 onnxruntime
 flask
+# Overlay de ventana única con reenvio de entrada
+pygame
 
 # Real-ESRGAN (OPCIONAL — solo para run_realesgran.py y conversión de modelos .pth)
 # Instalar la build CPU para evitar descargar la versión CUDA (~2,5 GB):

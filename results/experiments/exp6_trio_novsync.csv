@@ -1,0 +1,4 @@
+config,render,ia_en,fps_juego,fps_entregados,gpu_util
+nativa,1920x1080,-,44.2,-,74
+hibrida,640x360,iGPU,51.0,51.0,72
+dedicada,640x360,dGPU,51.2,51.4,78
