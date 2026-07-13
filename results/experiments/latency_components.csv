@@ -1,0 +1,8 @@
+etapa,media_ms,p50_ms,p90_ms
+espera,0.023,0.022,0.029
+lectura,0.251,0.234,0.305
+preproceso,0.292,0.275,0.346
+inferencia,18.401,18.258,20.110
+postproceso,11.089,10.864,14.117
+presentacion,5.015,4.966,5.365
+total,35.048,34.658,38.412

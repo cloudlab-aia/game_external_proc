@@ -1,0 +1,54 @@
+# Ignorar carpetas de compilación
+/build/
+/virtualgl/build/
+
+# Archivos temporales de sistema/editor
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*~
+.DS_Store
+Thumbs.db
+
+# Archivos generados por CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Dumps y capturas temporales
+/tmp/*
+
+# Archivos de configuración de Visual Studio Code
+.vscode/
+# Entornos virtuales Python
+venv/
+.venv/
+*venv*/
+__pycache__/
+*.pyc
+
+# Binarios compilados del interceptor (regenerar con capture/build.sh)
+capture/*.so
+
+# Configuración local de herramientas (no versionar)
+CLAUDE.md
+.claude/
+
+# Fase 2: frames generados en cada ejecución (no versionar)
+phase2/results/
+# Resultados crudos pesados de la matriz de viabilidad (solo se versiona thesis_submission + CSVs)
+benchmarks/viability/results/comparisons_game*/
+benchmarks/viability/logs/
+
+# Binario del interceptor de lanzamiento (regenerar con gcc)
+capture/game_launch_interposer.so
+
+# Documentos personales (enunciados, revisiones del tutor, guias) - nunca al repo
+/*.docx
+/*.pdf
+/*.odt
+/*.pptx
+docs/notas*.md

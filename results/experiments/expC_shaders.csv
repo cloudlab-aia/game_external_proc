@@ -1,0 +1,5 @@
+config,resolucion,fps_render
+sin_IA,854x480,32.3
+IA_dGPU_dedicada,854x480,30.5
+IA_iGPU_hibrida,854x480,29.0
+nativa,1920x1080,9.5

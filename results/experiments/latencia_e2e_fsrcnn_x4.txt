@@ -1,0 +1,15 @@
+Latencia end-to-end del pipeline híbrido (captura → pantalla)
+Medido sobre el pipeline real con el wrapper instrumentado (sello CLOCK_MONOTONIC
+en /dev/shm/framebuffer_ts) y benchmarks/measure_latency.py.
+Configuración: FSRCNN x4 OpenVINO en iGPU Intel, entrada 480x270 → salida 1080p,
+200 frames, captura de glxgears. (--no-display: hasta que la IA deja el frame listo)
+
+etapa                   media    p50    p95   (ms)
+espera captura→lector    3.73   3.86   6.78
+inferencia IA           14.92  14.45  19.42
+presentación             0.00   0.00   0.00
+TOTAL                   18.65  18.69  23.69
+
+La inferencia IA es ~80% de la latencia total (coincide con el estudio de
+viabilidad: el cuello de botella es la inferencia). La presentación física al
+monitor añade ~1 refresco (~16 ms a 60 Hz) no incluido aquí.

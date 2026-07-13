@@ -1,0 +1,200 @@
+{
+  "metadata": {
+    "analysis_timestamp": "2025-09-19T00:23:38.964380",
+    "data_sources": [
+      "benchmark_results.csv",
+      "results_experiment1.csv"
+    ],
+    "total_experiments": 159
+  },
+  "performance_analysis": {
+    "fsrcnn": {
+      "FSRCNN_x2.pb": {
+        "total_experiments": 42,
+        "performance": {
+          "mean_fps": 44.21401848620336,
+          "std_fps": 103.36668836526597,
+          "median_fps": 5.075789002500272,
+          "min_fps": 0.22225580754425114,
+          "max_fps": 444.44444444444446,
+          "mean_latency_ms": 1104.509523809524,
+          "std_latency_ms": 1460.9140941471599
+        },
+        "device_comparison": {
+          "cpu": {
+            "mean_fps": 64.183400673999,
+            "mean_latency_ms": 1214.9695238095235,
+            "experiments": 21
+          },
+          "opencl": {
+            "mean_fps": 24.244636298407734,
+            "mean_latency_ms": 994.0495238095239,
+            "experiments": 21
+          }
+        }
+      },
+      "FSRCNN_x3.pb": {
+        "total_experiments": 39,
+        "performance": {
+          "mean_fps": 46.60553148679286,
+          "std_fps": 101.18039167851639,
+          "median_fps": 4.757600266425615,
+          "min_fps": 0.2126786234588775,
+          "max_fps": 404.85829959514166,
+          "mean_latency_ms": 998.0871794871794,
+          "std_latency_ms": 1414.8056831034553
+        },
+        "device_comparison": {
+          "cpu": {
+            "mean_fps": 67.5021455521899,
+            "mean_latency_ms": 1055.4285,
+            "experiments": 20
+          },
+          "opencl": {
+            "mean_fps": 24.609095628480187,
+            "mean_latency_ms": 937.7278947368422,
+            "experiments": 19
+          }
+        }
+      },
+      "FSRCNN_x4.pb": {
+        "total_experiments": 38,
+        "performance": {
+          "mean_fps": 43.129594368945966,
+          "std_fps": 92.35072145016404,
+          "median_fps": 4.258360124038726,
+          "min_fps": 0.20097876659330943,
+          "max_fps": 354.6099290780142,
+          "mean_latency_ms": 1126.5115789473684,
+          "std_latency_ms": 1537.7673671224227
+        },
+        "device_comparison": {
+          "cpu": {
+            "mean_fps": 61.8236301284109,
+            "mean_latency_ms": 1213.6752631578947,
+            "experiments": 19
+          },
+          "opencl": {
+            "mean_fps": 24.43555860948103,
+            "mean_latency_ms": 1039.3478947368421,
+            "experiments": 19
+          }
+        }
+      }
+    },
+    "realesrgan": {
+      "total_experiments": 10,
+      "performance": {
+        "mean_fps": 154.4675033613213,
+        "std_fps": 2.955840968793664,
+        "median_fps": 155.76323987538942,
+        "min_fps": 149.47683109118086,
+        "max_fps": 158.9825119236884,
+        "mean_latency_ms": 6.476000000000001,
+        "std_latency_ms": 0.12465062285354934
+      }
+    }
+  },
+  "comparative_analysis": {
+    "common_resolutions": [
+      "1280x720",
+      "1920x1080",
+      "640x360",
+      "2560x1440",
+      "128x72"
+    ],
+    "resolution_comparison": {
+      "1280x720": {
+        "fsrcnn": {
+          "mean_fps": 1.0869549787640023,
+          "best_fps": 1.366829775019819
+        },
+        "realesrgan": {
+          "mean_fps": 156.25152589380758,
+          "best_fps": 156.73981191222572
+        },
+        "performance_ratio": 143.75160788304612
+      },
+      "1920x1080": {
+        "fsrcnn": {
+          "mean_fps": 0.437118679502576,
+          "best_fps": 0.5268953743855083
+        },
+        "realesrgan": {
+          "mean_fps": 152.43937862363043,
+          "best_fps": 152.67175572519085
+        },
+        "performance_ratio": 348.7368208494327
+      },
+      "640x360": {
+        "fsrcnn": {
+          "mean_fps": 4.901250553769227,
+          "best_fps": 6.037189084762136
+        },
+        "realesrgan": {
+          "mean_fps": 157.3728758995389,
+          "best_fps": 158.9825119236884
+        },
+        "performance_ratio": 32.10871882044754
+      },
+      "2560x1440": {
+        "fsrcnn": {
+          "mean_fps": 0.22932030120991925,
+          "best_fps": 0.2627575352292165
+        },
+        "realesrgan": {
+          "mean_fps": 150.26711645193484,
+          "best_fps": 151.05740181268882
+        },
+        "performance_ratio": 655.2717559636409
+      },
+      "128x72": {
+        "fsrcnn": {
+          "mean_fps": 135.12528444125874,
+          "best_fps": 444.44444444444446
+        },
+        "realesrgan": {
+          "mean_fps": 156.00661993769472,
+          "best_fps": 156.25
+        },
+        "performance_ratio": 1.1545331473882186
+      }
+    }
+  },
+  "statistical_analysis": {
+    "fsrcnn_fps_distribution": {
+      "mean": 44.65150496155806,
+      "median": 4.496807266840543,
+      "std": 98.00105958594311,
+      "min": 0.20097876659330943,
+      "max": 444.44444444444446,
+      "q25": 0.5061948268239536,
+      "q75": 39.34495448940325,
+      "skewness": 2.8029030904131913,
+      "kurtosis": 6.769982311769883
+    },
+    "device_performance": {
+      "cpu": {
+        "mean_fps": 64.54238829395973,
+        "mean_latency": 1161.3793333333333,
+        "experiments": 60,
+        "efficiency_score": 55.57390806043825
+      },
+      "opencl": {
+        "mean_fps": 24.42348801335297,
+        "mean_latency": 990.4996610169492,
+        "experiments": 59,
+        "efficiency_score": 24.65774494892537
+      }
+    },
+    "realesrgan_fps_distribution": {
+      "mean": 154.4675033613213,
+      "median": 155.76323987538942,
+      "std": 2.804156958787999,
+      "min": 149.47683109118086,
+      "max": 158.9825119236884,
+      "q25": 152.32319007285022,
+      "q75": 156.12830996884736
+    }
+  }
+}
