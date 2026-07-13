@@ -1,4 +1,4 @@
-"""Overlay con reenvío de input — modo pantalla virtual.
+"""Overlay con reenvío de input, modo pantalla virtual.
 
 Muestra en una ventana real (display :1) los frames reescalados por IA que
 produce el juego corriendo en una PANTALLA VIRTUAL (Xvfb, p. ej. :2), y

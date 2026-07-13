@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exp A — Barrido de inferencia SIN carga: FSRCNN en dGPU vs iGPU vs CPU,
+# Exp A, Barrido de inferencia SIN carga: FSRCNN en dGPU vs iGPU vs CPU,
 # por resolución de entrada y factor de escala. Mapa base de qué dispositivo
 # gana en cada combinación en reposo.
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1

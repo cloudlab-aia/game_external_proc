@@ -1,5 +1,5 @@
 #!/bin/bash
-# Opción B — ventana única: el juego corre debajo (render en dGPU) y solo se
+# Opción B, ventana única: el juego corre debajo (render en dGPU) y solo se
 # ve el overlay fullscreen con el frame reescalado por IA (iGPU). El input va
 # al juego (conserva foco de teclado y captura de puntero durante el juego).
 #

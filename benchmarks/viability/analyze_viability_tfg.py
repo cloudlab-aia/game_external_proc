@@ -882,7 +882,7 @@ def write_text_summary(rows):
  key2p50[k] = r["p50_ms"]
 
  L("=" * 72)
- L("RESUMEN DE VIABILIDAD — SUPERRESOLUCIÓN EN PIPELINE DE JUEGO")
+ L("RESUMEN DE VIABILIDAD, SUPERRESOLUCIÓN EN PIPELINE DE JUEGO")
  L(f"Generado: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
  L(f"Filas de datos: {len(rows)} | Dispositivos: {', '.join(devices_present)}")
  L(f"Estados de carga: {', '.join(loads_present)}")

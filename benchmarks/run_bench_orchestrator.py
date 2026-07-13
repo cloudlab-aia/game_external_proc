@@ -43,7 +43,7 @@ for w,h in resolutions:
     try:
         subprocess.run(["wmctrl","-r","glxgears","-e",f"0,0,0,{w},{h}"], check=True)
     except Exception as e:
-        print(f"[!] wmctrl no funcionó: {e} — asegúrate de tener wmctrl y que exista ventana 'glxgears'")
+        print(f"[!] wmctrl no funcionó: {e}, asegúrate de tener wmctrl y que exista ventana 'glxgears'")
 
     # wait to stabilize
     time.sleep(3.5)

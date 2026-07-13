@@ -41,7 +41,7 @@ if g:
     plt.plot(x, [fps["dGPU"][lt] for lt in order], "o-", color="#76b900", lw=2, label="dGPU (NVIDIA, CUDA)")
     plt.plot(x, [fps["iGPU"][lt] for lt in order], "s-", color="#0071c5", lw=2, label="iGPU (Intel, OpenVINO)")
     plt.xticks(x, [f"{util[lt]}%" for lt in order])
-    plt.xlabel("Carga de la dGPU (utilización %) — creciente →")
+    plt.xlabel("Carga de la dGPU (utilización %), creciente →")
     plt.ylabel("FPS de inferencia FSRCNN x4 (480×270→1080p)")
     plt.title("Cruce de rendimiento: al saturar la dGPU, la iGPU la supera")
     plt.grid(alpha=0.3); plt.legend()
@@ -112,7 +112,7 @@ if c:
             plt.text(i, v + 0.4, f"{v:.0f}", ha="center", fontweight="bold")
         plt.xticks(x, labels)
         plt.ylabel("FPS del juego (render)")
-        plt.title("FPS con shaders Photon — misma salida 1080p")
+        plt.title("FPS con shaders Photon, misma salida 1080p")
         if "nativa" in d and "IA_iGPU_hibrida" in d and d["nativa"][1] > 0:
             r = d["IA_iGPU_hibrida"][1] / d["nativa"][1]
             plt.text(0.5, max(bars) * 0.85, f"híbrida {r:.1f}× nativa", ha="center",

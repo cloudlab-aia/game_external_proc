@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-simulate_game.py — Simulates a running game by writing frames into SHM.
+simulate_game.py, Simulates a running game by writing frames into SHM.
 
 Useful to test hybrid_pipeline.py without needing a real game.
 Reads images from a folder (or a video file) and writes them to SHM

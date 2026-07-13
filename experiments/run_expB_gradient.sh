@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exp B (gradiente) — Cruce: inferencia FSRCNN en dGPU vs iGPU a niveles
+# Exp B (gradiente), Cruce: inferencia FSRCNN en dGPU vs iGPU a niveles
 # CRECIENTES de carga de la dGPU (0..N stressors CUDA). Muestra cómo la ventaja
 # de la dGPU se reduce conforme se satura, acercándose a la iGPU (que es estable).
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1

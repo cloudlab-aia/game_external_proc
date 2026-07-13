@@ -105,7 +105,7 @@ for s,d in sorted(byscale.items()):
     b=plt.bar(range(3),vals,color=cols,width=0.6)
     for i,v in enumerate(vals): plt.text(i,v+0.3,f"{v:.1f}",ha="center",fontweight="bold")
     plt.xticks(range(3),labels); plt.ylabel("FPS finales (1080p entregados)")
-    plt.title(f"FPS finales por arquitectura — escala x{s}")
+    plt.title(f"FPS finales por arquitectura, escala x{s}")
     if vals[2]>vals[1]: plt.text(0.5,max(vals)*0.9,"la híbrida GANA",ha="center",color="#27ae60",fontsize=12,fontweight="bold",transform=plt.gca().get_xaxis_transform())
     plt.grid(axis="y",alpha=0.3); plt.tight_layout()
     plt.savefig(os.path.join(outd,f"expE_x{s}.png"),dpi=130); plt.close()

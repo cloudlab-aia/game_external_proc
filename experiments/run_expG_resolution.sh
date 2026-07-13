@@ -89,7 +89,7 @@ for s in scales:
     names=[next(r["input_res"] for r in rows if px(r["input_res"])==x) for x in xs]
     plt.xticks(xs,names,rotation=25,fontsize=8)
     plt.xlabel("Resolución de render (entrada)"); plt.ylabel("FPS del juego (fluidez)")
-    plt.title(f"FPS del juego vs resolución de render — escala x{s}")
+    plt.title(f"FPS del juego vs resolución de render, escala x{s}")
     plt.grid(alpha=0.3); plt.legend(); plt.tight_layout()
     plt.savefig(os.path.join(outd,f"expG_game_x{s}.png"),dpi=130); plt.close(); print(f"  expG_game_x{s}.png")
 PYEOF

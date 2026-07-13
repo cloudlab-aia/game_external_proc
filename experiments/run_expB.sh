@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exp B — Cruce bajo carga: FSRCNN en cada dispositivo bajo cada estado de
+# Exp B, Cruce bajo carga: FSRCNN en cada dispositivo bajo cada estado de
 # carga. Pregunta clave: cuando la dGPU está saturada (≈ renderizando el
 # juego), ¿su inferencia cae por debajo de la iGPU (libre)?
 #
@@ -47,5 +47,5 @@ loads = ["idle","cpu","igpu","dgpu"]
 print(f"{'disp':<6}" + "".join(f"{l:>9}" for l in loads))
 for d in ["dGPU","iGPU","CPU"]:
     print(f"{d:<6}" + "".join(f"{t[d].get(l,0):>9.0f}" for l in loads))
-print("\nCruce: comparar columna 'dgpu' (dGPU cargada) — ¿iGPU > dGPU?")
+print("\nCruce: comparar columna 'dgpu' (dGPU cargada), ¿iGPU > dGPU?")
 EOF

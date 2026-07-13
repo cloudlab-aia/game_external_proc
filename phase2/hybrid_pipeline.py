@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-hybrid_pipeline.py — Real-time hybrid iGPU+dGPU super-resolution pipeline.
+hybrid_pipeline.py, Real-time hybrid iGPU+dGPU super-resolution pipeline.
 
 Architecture:
     dGPU renders game at low resolution

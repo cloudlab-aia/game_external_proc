@@ -1,4 +1,4 @@
-"""Fase 2 — Matriz de calidad: arquitectura híbrida vs bicúbico.
+"""Fase 2, Matriz de calidad: arquitectura híbrida vs bicúbico.
 
 Compara, con downsampling controlado y pixel-aligned, la reconstrucción del
 pipeline híbrido (render bajo + FSRCNN/OpenVINO en iGPU) frente al baseline

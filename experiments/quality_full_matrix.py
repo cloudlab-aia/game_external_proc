@@ -97,7 +97,7 @@ def main():
             scale_eff = oh / ih
             factor = min(4, max(2, round(ow / iw)))  # modelo FSRCNN más cercano
             # Render bajo por downsampling bicúbico del GT (protocolo SR estándar:
-            # FSRCNN se entrena/evalúa con degradación bicúbica — Set5/Set14).
+            # FSRCNN se entrena/evalúa con degradación bicúbica, Set5/Set14).
             low = cv2.resize(gt, (iw, ih), interpolation=cv2.INTER_CUBIC)
 
             req = get_req(factor, iw, ih)

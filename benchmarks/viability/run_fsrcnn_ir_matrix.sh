@@ -2,7 +2,7 @@
 # run_fsrcnn_ir_matrix.sh
 #
 # Matriz para FSRCNN convertido a OpenVINO IR (.xml/.bin).
-# Solo CPU_OV y iGPU_OV — únicos backends que ejecutan IR.
+# Solo CPU_OV y iGPU_OV, únicos backends que ejecutan IR.
 # Reutiliza stressors de run_viability_matrix.sh para idle/cpu/igpu/dgpu.
 
 set -uo pipefail

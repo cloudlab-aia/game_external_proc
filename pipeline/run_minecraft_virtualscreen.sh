@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pantalla virtual SOLO para el juego — el launcher se usa con normalidad.
+# Pantalla virtual SOLO para el juego, el launcher se usa con normalidad.
 #
 # El launcher de Minecraft se abre normal en el display real. Un interceptor
 # (capture/game_launch_interposer.so) vigila qué procesos lanza el launcher y,

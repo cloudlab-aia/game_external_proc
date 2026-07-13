@@ -8,7 +8,7 @@ import openvino as ov
 # Configuración
 SHM_NAME = "/dev/shm/framebuffer_shared"
 # Header del wrapper (capture/wrapper_swapbuffers_shm.c):
-# uint32 width, height, seq, ready — seguido del frame RGBA ya volteado
+# uint32 width, height, seq, ready, seguido del frame RGBA ya volteado
 HEADER_FMT = "IIII"
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
 MAX_DIM = 8192  # sanidad: descartar headers corruptos

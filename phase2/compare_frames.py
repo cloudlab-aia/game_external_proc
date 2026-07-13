@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-compare_frames.py — Frame-by-frame PSNR/SSIM comparison between SR methods.
+compare_frames.py, Frame-by-frame PSNR/SSIM comparison between SR methods.
 
 Compares hybrid FSRCNN frames vs bicubic baseline, and optionally vs a
 native reference render (same scene captured at full resolution).

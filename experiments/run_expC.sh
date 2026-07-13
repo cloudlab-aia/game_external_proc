@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exp C — FPS del JUEGO con shaders: nativa vs dedicada (IA en dGPU) vs híbrida
+# Exp C, FPS del JUEGO con shaders: nativa vs dedicada (IA en dGPU) vs híbrida
 # (IA en iGPU). Mide el FPS de render del juego (contador del buzón) en tres
 # condiciones, a la resolución de ventana ACTUAL del juego.
 #
