@@ -76,7 +76,7 @@ def postprocess(residual, hr_blob):
     """Convierte la salida del modelo a imagen BGR.
 
     El modelo single-image-super-resolution-1032 devuelve un RESIDUO de alta
-    frecuencia (media ≈0); la imagen final es ese residuo sumado a la entrada
+    frecuencia (media proxima a 0); la imagen final es ese residuo sumado a la entrada
     bicúbica (input 1). Usar la salida directamente da una imagen casi negra.
     """
     sr = (residual + hr_blob)[0].transpose(1, 2, 0)  # CHW → HWC

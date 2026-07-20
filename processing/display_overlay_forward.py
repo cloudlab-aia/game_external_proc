@@ -14,6 +14,7 @@ Variables de entorno:
   TARGET_DISPLAY = :2 (def)   display virtual donde corre el juego
   FSRCNN_SCALE   = 4 (def)
   DISPLAY        = :1 (def)   donde se ve el overlay y se captura el input
+  INFER_DEVICE   = iGPU (def) | dGPU   backend de inferencia (OpenVINO/ONNX+CUDA)
 """
 import os
 import struct
@@ -40,6 +41,35 @@ SCALE = int(os.environ.get("FSRCNN_SCALE", "4"))
 MODEL_XML = os.path.join(REPO_DIR, "models", "openvino_ir", f"FSRCNN_x{SCALE}.xml")
 IN_W, IN_H = {4: (480, 270), 3: (640, 360), 2: (960, 540)}[SCALE]
 TARGET_DISPLAY = os.environ.get("TARGET_DISPLAY", ":2")
+INFER_DEVICE = os.environ.get("INFER_DEVICE", "iGPU")
+
+
+def build_infer():
+    """Devuelve una funcion y(0..1 float, HxW) -> y_sr(0..1 float) segun backend."""
+    if INFER_DEVICE == "dGPU":
+        import onnxruntime as ort
+        ort.preload_dlls()
+        sess = ort.InferenceSession(
+            os.path.join(REPO_DIR, "models", f"FSRCNN_x{SCALE}.onnx"),
+            providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+        assert sess.get_providers()[0] == "CUDAExecutionProvider", "CUDA no activo"
+        in_name = sess.get_inputs()[0].name
+        out_name = sess.get_outputs()[0].name
+        print(f"[INFO] dGPU (CUDA), FSRCNN x{SCALE}; reenvío de input a {TARGET_DISPLAY}")
+        return lambda y: np.squeeze(sess.run([out_name], {in_name: y})[0])
+
+    core = ov.Core()
+    dev = "GPU" if "GPU" in core.available_devices else "CPU"
+    m = core.read_model(MODEL_XML)
+    m.reshape([1, IN_H, IN_W, 1])
+    compiled = core.compile_model(m, dev, {"CACHE_DIR": "/tmp/openvino_cache"})
+    req = compiled.create_infer_request()
+    print(f"[INFO] {dev} (OpenVINO), FSRCNN x{SCALE}; reenvío de input a {TARGET_DISPLAY}")
+
+    def infer(y):
+        req.infer({0: y})
+        return np.squeeze(req.get_output_tensor().data)
+    return infer
 
 # --- Mapa de teclas pygame -> nombre de keysym X (teclas no imprimibles) ---
 SPECIAL_KEYS = {
@@ -197,14 +227,7 @@ def read_frame(last_seq):
 
 
 def main():
-    core = ov.Core()
-    dev = "GPU" if "GPU" in core.available_devices else "CPU"
-    m = core.read_model(MODEL_XML)
-    m.reshape([1, IN_H, IN_W, 1])
-    compiled = core.compile_model(m, dev, {"CACHE_DIR": "/tmp/openvino_cache"})
-    infer = compiled.create_infer_request()
-    print(f"[INFO] {dev}, FSRCNN x{SCALE}; reenvío de input a {TARGET_DISPLAY}")
-
+    infer = build_infer()
     fwd = InputForwarder(TARGET_DISPLAY)
 
     pygame.init()
@@ -253,8 +276,8 @@ def main():
         last_seq = seq
         ycrcb = cv2.cvtColor(cv2.resize(frame, (IN_W, IN_H)), cv2.COLOR_BGR2YCrCb)
         y = ycrcb[:, :, 0].astype(np.float32)[None, :, :, None] / 255.0
-        infer.infer({0: y})
-        y_up = (np.squeeze(infer.get_output_tensor().data) * 255).clip(0, 255).astype(np.uint8)
+        y_sr = infer(y)
+        y_up = (y_sr * 255).clip(0, 255).astype(np.uint8)
         oh, ow = y_up.shape
         cr = cv2.resize(ycrcb[:, :, 1], (ow, oh)); cb = cv2.resize(ycrcb[:, :, 2], (ow, oh))
         rgb = cv2.cvtColor(cv2.cvtColor(cv2.merge([y_up, cr, cb]), cv2.COLOR_YCrCb2BGR), cv2.COLOR_BGR2RGB)

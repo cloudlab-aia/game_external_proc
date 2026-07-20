@@ -34,8 +34,8 @@ rm -f "$SHM" /tmp/.X2-lock /tmp/.X11-unix/X2
 rm -f "$HOME/.minecraft/webcache2/"Singleton* 2>/dev/null   # lock rancio de Electron
 sleep 1
 
-echo "[2/5] Pantalla virtual oculta ($VIRT)..."
-Xvfb "$VIRT" -screen 0 1920x1080x24 &>/tmp/xvfb_final.log &
+echo "[2/5] Pantalla virtual oculta ($VIRT, ${VIRT_RES:-1920x1080x24})..."
+Xvfb "$VIRT" -screen 0 "${VIRT_RES:-1920x1080x24}" &>/tmp/xvfb_final.log &
 sleep 2
 [ -e /tmp/.X11-unix/X2 ] || { echo "ERROR: Xvfb no arrancó"; exit 1; }
 
@@ -71,6 +71,23 @@ GW=$(DISPLAY=$VIRT xdotool search --name "Minecraft\*" 2>/dev/null | tail -1)
 [ -n "$GW" ] && DISPLAY=$VIRT xdotool windowsize "$GW" "$GAME_W" "$GAME_H" 2>/dev/null \
     && echo "      Render del juego a ${GAME_W}x${GAME_H}"
 
-echo "[5/5] Overlay (IA x$SCALE en la iGPU -> 1080p). F12 o Ctrl+C aquí para salir."
-QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY="$SESION" TARGET_DISPLAY="$VIRT" \
-    FSRCNN_SCALE="$SCALE" "$PY" "$REPO/processing/display_overlay_forward.py"
+INFER_DEVICE="${INFER_DEVICE:-iGPU}"
+echo "[5/5] Overlay (IA x$SCALE en $INFER_DEVICE -> 1080p). F12 o Ctrl+C aquí para salir."
+if [ "$INFER_DEVICE" = "dGPU" ]; then
+    QT_QPA_PLATFORM=xcb DISPLAY="$SESION" TARGET_DISPLAY="$VIRT" \
+        FSRCNN_SCALE="$SCALE" INFER_DEVICE="$INFER_DEVICE" "$PY" "$REPO/processing/display_overlay_forward.py"
+else
+    QT_QPA_PLATFORM=xcb CUDA_VISIBLE_DEVICES="" DISPLAY="$SESION" TARGET_DISPLAY="$VIRT" \
+        FSRCNN_SCALE="$SCALE" INFER_DEVICE="$INFER_DEVICE" "$PY" "$REPO/processing/display_overlay_forward.py"
+fi
+
+# Con KEEP_GAME=1, al cerrar el overlay el juego sigue vivo en la pantalla
+# virtual (para lanzar scripts de medicion sin el consumidor). Terminar con:
+# pkill java; pkill -f "Xvfb :2"
+if [ "${KEEP_GAME:-0}" = "1" ]; then
+    trap - EXIT INT TERM
+    echo ""
+    echo ">>> KEEP_GAME=1: overlay cerrado, el juego sigue capturando en $VIRT."
+    echo ">>> Termina con: pkill java; pkill -f 'Xvfb $VIRT'"
+    exit 0
+fi
