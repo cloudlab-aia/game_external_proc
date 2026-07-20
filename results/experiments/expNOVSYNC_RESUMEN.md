@@ -68,3 +68,38 @@ quedan invalidados y no deben citarse.**
   después (`capture/wrapper_swapbuffers_shm.c`).
 - **Throttling de Xwayland:** ventana del juego tapada ⇒ 0 FPS de captura.
   Protocolo: mantenerla visible durante toda la medida.
+
+## Barrido nativo por resolucion de salida (2026-07-17)
+
+Complemento del barrido hibrida vs dedicada sobre pantalla virtual con
+captura sin presentar: FPS del juego renderizando NATIVO (sin sistema de
+super-resolucion, sin consumidor) a cada resolucion de salida del Exp G.
+Mismo camino (Xvfb 4K + PRIME + CAPTURE_SKIP_PRESENT=1, sin VSync, misma
+escena fija), script `experiments/run_native_output_sweep.sh`, 8 s de
+medida por punto tras estabilizacion, resolucion efectiva verificada en
+la cabecera del shm. CSV: `expG_native_output.csv`.
+
+| Salida | FPS | | Salida | FPS |
+|---|---|---|---|---|
+| 640x360 | 52.6 | | 1920x1080 | 43.4 |
+| 960x540 | 51.3 | | 2560x1440 | 34.5 |
+| 1280x720 | 47.5 | | 2562x1440 | 34.7 |
+| 1440x810 | 45.1 | | 2880x1620 | 33.9 |
+| 1708x960 | 45.4 | | 3416x1920 | 29.6 |
+| | | | 3840x2160 | 25.7 |
+
+Validacion cruzada: 1080p nativo = 43.4 FPS, consistente con los
+44.2/44.6 FPS de las tandas anteriores. Lectura: la hibrida se mantiene
+en 54-62 FPS en todo el barrido mientras el nativo cae con la salida;
+a 4K la hibrida casi duplica al nativo (54.9 vs 25.7, +29 FPS).
+Graficas regeneradas con la recta nativa: `plots/expG_game_x{2,3,4}_xvfb_skip.png`.
+
+## Verificacion de la no-monotonia del Exp G (2026-07-17)
+
+Los puntos hibrida x3/x4 en 640x360 y 854x480 mostraban una subida no
+monotona en la campana original (55.7 -> 58.2 en x4). Re-medidos con dos
+repeticiones por punto (misma sesion, escena distinta de la original):
+x3: 45.8/45.9 -> 42.9/43.5; x4: 45.1/45.0 -> 43.9/44.1. Comportamiento
+monotono decreciente y repetible (<0.5 FPS entre repeticiones). La
+subida original era variabilidad entre sesiones, no un efecto
+sistematico. Parrafo del analisis corregido en la memoria.

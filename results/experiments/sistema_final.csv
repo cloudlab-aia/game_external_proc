@@ -1,0 +1,4 @@
+config,in_res,out_res,render_fps,visible_fps
+nativa,1920x1080,1920x1080,24.08,24.08
+dedicada,640x360,1920x1080,24.54,24.54
+hibrida,640x360,1920x1080,22.00,22.00

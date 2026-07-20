@@ -51,4 +51,7 @@ capture/game_launch_interposer.so
 /*.pdf
 /*.odt
 /*.pptx
+docs/*.pdf
+docs/*.docx
+docs/*.odt
 docs/notas*.md
